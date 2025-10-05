@@ -5,4 +5,8 @@ These validators ensure syntax correctness and basic structural validity
 without re-implementing full parsing logic.
 """
 
-__all__ = []
+from validators.java_validator import JavaValidator
+
+__all__ = [
+    "JavaValidator",
+]

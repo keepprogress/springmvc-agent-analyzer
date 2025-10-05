@@ -1,0 +1,225 @@
+[
+  {
+    "description": "Simple controller with class-level mapping and @Autowired service",
+    "input": "@Controller\n@RequestMapping(\"/users\")\npublic class UserController {\n    @Autowired\n    private UserService userService;\n\n    @GetMapping(\"/list\")\n    public ModelAndView listUsers() {\n        return new ModelAndView(\"users/list\");\n    }\n\n    @PostMapping(\"/save\")\n    public ModelAndView saveUser(@ModelAttribute User user) {\n        userService.save(user);\n        return new ModelAndView(\"redirect:/users/list\");\n    }\n}",
+    "output": {
+      "class_name": "UserController",
+      "package": "unknown",
+      "class_level_mapping": "/users",
+      "controller_type": "@Controller",
+      "mappings": [
+        {
+          "method_name": "listUsers",
+          "path": "/users/list",
+          "http_method": "GET",
+          "parameters": [],
+          "return_type": "ModelAndView"
+        },
+        {
+          "method_name": "saveUser",
+          "path": "/users/save",
+          "http_method": "POST",
+          "parameters": [
+            {
+              "name": "user",
+              "type": "User",
+              "annotation": "@ModelAttribute"
+            }
+          ],
+          "return_type": "ModelAndView"
+        }
+      ],
+      "dependencies": [
+        {
+          "field_name": "userService",
+          "type": "UserService",
+          "annotation": "@Autowired"
+        }
+      ],
+      "confidence": 0.95,
+      "notes": "Standard Spring MVC pattern, clear structure"
+    }
+  },
+  {
+    "description": "REST controller without class-level mapping, using @RequestBody and ResponseEntity",
+    "input": "package com.example.api;\n\nimport org.springframework.web.bind.annotation.*;\nimport org.springframework.http.ResponseEntity;\n\n@RestController\npublic class ApiController {\n    @Autowired\n    private UserService userService;\n\n    @PostMapping(\"/api/users\")\n    public ResponseEntity<User> createUser(@RequestBody User user) {\n        User saved = userService.save(user);\n        return ResponseEntity.ok(saved);\n    }\n\n    @GetMapping(\"/api/users/{id}\")\n    public ResponseEntity<User> getUser(@PathVariable(\"id\") Long userId) {\n        User user = userService.findById(userId);\n        return ResponseEntity.ok(user);\n    }\n}",
+    "output": {
+      "class_name": "ApiController",
+      "package": "com.example.api",
+      "class_level_mapping": null,
+      "controller_type": "@RestController",
+      "mappings": [
+        {
+          "method_name": "createUser",
+          "path": "/api/users",
+          "http_method": "POST",
+          "parameters": [
+            {
+              "name": "user",
+              "type": "User",
+              "annotation": "@RequestBody"
+            }
+          ],
+          "return_type": "ResponseEntity<User>"
+        },
+        {
+          "method_name": "getUser",
+          "path": "/api/users/{id}",
+          "http_method": "GET",
+          "parameters": [
+            {
+              "name": "userId",
+              "type": "Long",
+              "annotation": "@PathVariable(\"id\")"
+            }
+          ],
+          "return_type": "ResponseEntity<User>"
+        }
+      ],
+      "dependencies": [
+        {
+          "field_name": "userService",
+          "type": "UserService",
+          "annotation": "@Autowired"
+        }
+      ],
+      "confidence": 0.98,
+      "notes": "REST controller with clear RESTful design, package statement present"
+    }
+  },
+  {
+    "description": "Controller with @RequestParam and optional parameters",
+    "input": "@Controller\n@RequestMapping(\"/products\")\npublic class ProductController {\n    @Resource\n    private ProductService productService;\n\n    @GetMapping(\"/search\")\n    public ModelAndView search(\n        @RequestParam(value = \"keyword\", required = false) String keyword,\n        @RequestParam(value = \"page\", defaultValue = \"1\") int page,\n        @RequestParam(value = \"size\", defaultValue = \"20\") int size\n    ) {\n        List<Product> products = productService.search(keyword, page, size);\n        ModelAndView mav = new ModelAndView(\"products/search\");\n        mav.addObject(\"products\", products);\n        return mav;\n    }\n}",
+    "output": {
+      "class_name": "ProductController",
+      "package": "unknown",
+      "class_level_mapping": "/products",
+      "controller_type": "@Controller",
+      "mappings": [
+        {
+          "method_name": "search",
+          "path": "/products/search",
+          "http_method": "GET",
+          "parameters": [
+            {
+              "name": "keyword",
+              "type": "String",
+              "annotation": "@RequestParam(value = \"keyword\", required = false)"
+            },
+            {
+              "name": "page",
+              "type": "int",
+              "annotation": "@RequestParam(value = \"page\", defaultValue = \"1\")"
+            },
+            {
+              "name": "size",
+              "type": "int",
+              "annotation": "@RequestParam(value = \"size\", defaultValue = \"20\")"
+            }
+          ],
+          "return_type": "ModelAndView"
+        }
+      ],
+      "dependencies": [
+        {
+          "field_name": "productService",
+          "type": "ProductService",
+          "annotation": "@Resource"
+        }
+      ],
+      "confidence": 0.95,
+      "notes": "Multiple request parameters with default values and optional flags"
+    }
+  },
+  {
+    "description": "Controller using old-style @RequestMapping with method attribute",
+    "input": "@Controller\npublic class LegacyController {\n    private final LegacyService legacyService;\n\n    @Autowired\n    public LegacyController(LegacyService legacyService) {\n        this.legacyService = legacyService;\n    }\n\n    @RequestMapping(value = \"/legacy/action\", method = RequestMethod.POST)\n    public String handleAction(@RequestParam(\"action\") String action) {\n        legacyService.process(action);\n        return \"redirect:/legacy/result\";\n    }\n}",
+    "output": {
+      "class_name": "LegacyController",
+      "package": "unknown",
+      "class_level_mapping": null,
+      "controller_type": "@Controller",
+      "mappings": [
+        {
+          "method_name": "handleAction",
+          "path": "/legacy/action",
+          "http_method": "POST",
+          "parameters": [
+            {
+              "name": "action",
+              "type": "String",
+              "annotation": "@RequestParam(\"action\")"
+            }
+          ],
+          "return_type": "String"
+        }
+      ],
+      "dependencies": [
+        {
+          "field_name": "legacyService",
+          "type": "LegacyService",
+          "annotation": "Constructor"
+        }
+      ],
+      "confidence": 0.93,
+      "notes": "Uses constructor injection and old-style @RequestMapping with method attribute"
+    }
+  },
+  {
+    "description": "Controller with multiple path variables and complex return type",
+    "input": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n    @Autowired\n    private OrderService orderService;\n\n    @GetMapping(\"/{orderId}/items/{itemId}\")\n    public ResponseEntity<Map<String, Object>> getOrderItem(\n        @PathVariable(\"orderId\") Long orderId,\n        @PathVariable(\"itemId\") Long itemId\n    ) {\n        Map<String, Object> result = orderService.getOrderItem(orderId, itemId);\n        return ResponseEntity.ok(result);\n    }\n\n    @PostMapping(\"/{id}/validate\")\n    public ResponseEntity<Void> validateOrder(\n        @PathVariable Long id,\n        @Valid @RequestBody OrderRequest request\n    ) {\n        orderService.validate(id, request);\n        return ResponseEntity.noContent().build();\n    }\n}",
+    "output": {
+      "class_name": "OrderController",
+      "package": "unknown",
+      "class_level_mapping": "/api/orders",
+      "controller_type": "@RestController",
+      "mappings": [
+        {
+          "method_name": "getOrderItem",
+          "path": "/api/orders/{orderId}/items/{itemId}",
+          "http_method": "GET",
+          "parameters": [
+            {
+              "name": "orderId",
+              "type": "Long",
+              "annotation": "@PathVariable(\"orderId\")"
+            },
+            {
+              "name": "itemId",
+              "type": "Long",
+              "annotation": "@PathVariable(\"itemId\")"
+            }
+          ],
+          "return_type": "ResponseEntity<Map<String, Object>>"
+        },
+        {
+          "method_name": "validateOrder",
+          "path": "/api/orders/{id}/validate",
+          "http_method": "POST",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "Long",
+              "annotation": "@PathVariable"
+            },
+            {
+              "name": "request",
+              "type": "OrderRequest",
+              "annotation": "@Valid @RequestBody"
+            }
+          ],
+          "return_type": "ResponseEntity<Void>"
+        }
+      ],
+      "dependencies": [
+        {
+          "field_name": "orderService",
+          "type": "OrderService",
+          "annotation": "@Autowired"
+        }
+      ],
+      "confidence": 0.96,
+      "notes": "Multiple path variables and mixed parameter annotations including validation"
+    }
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "class_name": "ApiController",
+  "package": "com.example.api",
+  "class_level_mapping": null,
+  "controller_type": "@RestController",
+  "mappings": [
+    {
+      "method_name": "createUser",
+      "path": "/api/users",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "user",
+          "type": "User",
+          "annotation": "@RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<User>"
+    },
+    {
+      "method_name": "getUser",
+      "path": "/api/users/{id}",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "userId",
+          "type": "Long",
+          "annotation": "@PathVariable(\"id\")"
+        }
+      ],
+      "return_type": "ResponseEntity<User>"
+    },
+    {
+      "method_name": "deleteUser",
+      "path": "/api/users/{id}",
+      "http_method": "DELETE",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        }
+      ],
+      "return_type": "ResponseEntity<Void>"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "userService",
+      "type": "UserService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 0.98,
+  "notes": "REST controller without class-level mapping, clear RESTful design with ResponseEntity return types"
+}

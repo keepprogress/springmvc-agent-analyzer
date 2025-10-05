@@ -1,0 +1,61 @@
+{
+  "class_name": "HomeController",
+  "package": "com.example.web",
+  "class_level_mapping": null,
+  "controller_type": "@Controller",
+  "mappings": [
+    {
+      "method_name": "home",
+      "path": "/",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "String"
+    },
+    {
+      "method_name": "about",
+      "path": "/about",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "String"
+    },
+    {
+      "method_name": "contact",
+      "path": "/contact",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "String"
+    },
+    {
+      "method_name": "submitContact",
+      "path": "/contact/submit",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String",
+          "annotation": "@RequestParam(\"name\")"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "annotation": "@RequestParam(\"email\")"
+        },
+        {
+          "name": "message",
+          "type": "String",
+          "annotation": "@RequestParam(\"message\")"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "homeService",
+      "type": "HomeService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 0.95,
+  "notes": "No class-level mapping - all paths defined at method level, typical for home/utility controllers"
+}

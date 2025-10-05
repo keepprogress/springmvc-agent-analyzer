@@ -1,0 +1,68 @@
+{
+  "class_name": "ProductController",
+  "package": "com.example.web",
+  "class_level_mapping": "/products",
+  "controller_type": "@Controller",
+  "mappings": [
+    {
+      "method_name": "search",
+      "path": "/products/search",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "keyword",
+          "type": "String",
+          "annotation": "@RequestParam(value = \"keyword\", required = false)"
+        },
+        {
+          "name": "page",
+          "type": "int",
+          "annotation": "@RequestParam(value = \"page\", defaultValue = \"1\")"
+        },
+        {
+          "name": "size",
+          "type": "int",
+          "annotation": "@RequestParam(value = \"size\", defaultValue = \"20\")"
+        },
+        {
+          "name": "sortField",
+          "type": "String",
+          "annotation": "@RequestParam(value = \"sortBy\", required = false, defaultValue = \"name\")"
+        }
+      ],
+      "return_type": "ModelAndView"
+    },
+    {
+      "method_name": "filter",
+      "path": "/products/filter",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "String",
+          "annotation": "@RequestParam(value = \"category\")"
+        },
+        {
+          "name": "minPrice",
+          "type": "Double",
+          "annotation": "@RequestParam(value = \"minPrice\", required = false)"
+        },
+        {
+          "name": "maxPrice",
+          "type": "Double",
+          "annotation": "@RequestParam(value = \"maxPrice\", required = false)"
+        }
+      ],
+      "return_type": "ModelAndView"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "productService",
+      "type": "ProductService",
+      "annotation": "@Resource"
+    }
+  ],
+  "confidence": 0.95,
+  "notes": "Multiple RequestParam with optional flags and default values, uses @Resource for injection"
+}

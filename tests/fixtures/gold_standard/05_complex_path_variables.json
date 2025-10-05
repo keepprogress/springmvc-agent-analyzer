@@ -1,0 +1,76 @@
+{
+  "class_name": "OrderController",
+  "package": "com.example.api",
+  "class_level_mapping": "/api/orders",
+  "controller_type": "@RestController",
+  "mappings": [
+    {
+      "method_name": "getOrderItem",
+      "path": "/api/orders/{orderId}/items/{itemId}",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "orderId",
+          "type": "Long",
+          "annotation": "@PathVariable(\"orderId\")"
+        },
+        {
+          "name": "itemId",
+          "type": "Long",
+          "annotation": "@PathVariable(\"itemId\")"
+        }
+      ],
+      "return_type": "ResponseEntity<Map<String, Object>>"
+    },
+    {
+      "method_name": "validateOrder",
+      "path": "/api/orders/{id}/validate",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "request",
+          "type": "OrderRequest",
+          "annotation": "@Valid @RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<Void>"
+    },
+    {
+      "method_name": "updateQuantity",
+      "path": "/api/orders/{orderId}/items/{itemId}/quantity",
+      "http_method": "PUT",
+      "parameters": [
+        {
+          "name": "orderId",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "itemId",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "quantity",
+          "type": "Integer",
+          "annotation": "@RequestParam(\"quantity\")"
+        }
+      ],
+      "return_type": "ResponseEntity<Map<String, String>>"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "orderService",
+      "type": "OrderService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 0.96,
+  "notes": "Multiple path variables in complex paths, mixed parameter annotations including validation, generic return types"
+}

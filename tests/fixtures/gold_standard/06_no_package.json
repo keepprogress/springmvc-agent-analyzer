@@ -1,0 +1,37 @@
+{
+  "class_name": "NoPackageController",
+  "package": "unknown",
+  "class_level_mapping": "/test",
+  "controller_type": "@Controller",
+  "mappings": [
+    {
+      "method_name": "hello",
+      "path": "/test/hello",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "String"
+    },
+    {
+      "method_name": "submit",
+      "path": "/test/submit",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "data",
+          "type": "String",
+          "annotation": "@RequestParam(\"data\")"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "testService",
+      "type": "TestService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 0.85,
+  "notes": "No package statement present - edge case, otherwise standard controller structure"
+}

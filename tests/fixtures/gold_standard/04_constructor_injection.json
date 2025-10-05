@@ -1,0 +1,48 @@
+{
+  "class_name": "LegacyController",
+  "package": "com.example.legacy",
+  "class_level_mapping": null,
+  "controller_type": "@Controller",
+  "mappings": [
+    {
+      "method_name": "handleAction",
+      "path": "/legacy/action",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "String",
+          "annotation": "@RequestParam(\"action\")"
+        }
+      ],
+      "return_type": "String"
+    },
+    {
+      "method_name": "viewItem",
+      "path": "/legacy/view/{id}",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "itemId",
+          "type": "Long",
+          "annotation": "@PathVariable(\"id\")"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "legacyService",
+      "type": "LegacyService",
+      "annotation": "Constructor"
+    },
+    {
+      "field_name": "auditService",
+      "type": "AuditService",
+      "annotation": "Constructor"
+    }
+  ],
+  "confidence": 0.93,
+  "notes": "Uses constructor injection and old-style @RequestMapping with method attribute, no class-level mapping"
+}

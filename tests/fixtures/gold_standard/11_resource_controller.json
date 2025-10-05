@@ -1,0 +1,81 @@
+{
+  "class_name": "ResourceController",
+  "package": "com.example.api",
+  "class_level_mapping": "/api/resources",
+  "controller_type": "@RestController",
+  "mappings": [
+    {
+      "method_name": "listAll",
+      "path": "/api/resources",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "ResponseEntity<List<Resource>>"
+    },
+    {
+      "method_name": "getById",
+      "path": "/api/resources/{id}",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        }
+      ],
+      "return_type": "ResponseEntity<Resource>"
+    },
+    {
+      "method_name": "create",
+      "path": "/api/resources",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "resource",
+          "type": "Resource",
+          "annotation": "@Valid @RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<Resource>"
+    },
+    {
+      "method_name": "update",
+      "path": "/api/resources/{id}",
+      "http_method": "PUT",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "resource",
+          "type": "Resource",
+          "annotation": "@Valid @RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<Resource>"
+    },
+    {
+      "method_name": "delete",
+      "path": "/api/resources/{id}",
+      "http_method": "DELETE",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        }
+      ],
+      "return_type": "ResponseEntity<Void>"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "resourceService",
+      "type": "ResourceService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 0.98,
+  "notes": "Full REST resource controller implementing CRUD operations (GET, POST, PUT, DELETE) with validation"
+}

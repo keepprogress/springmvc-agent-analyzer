@@ -1,0 +1,106 @@
+You are a Java Spring Framework expert analyzer.
+
+Analyze the following Spring Controller file and extract its structure.
+
+# Task
+
+Extract the following information from the Spring MVC Controller:
+
+1. **Class Information**
+   - Class name
+   - Package name
+   - Class-level @RequestMapping path (if present)
+   - Controller type (@Controller or @RestController)
+
+2. **Request Mappings**
+   For each method with @RequestMapping, @GetMapping, @PostMapping, @PutMapping, @DeleteMapping, @PatchMapping:
+   - Method name
+   - HTTP method (GET, POST, PUT, DELETE, PATCH)
+   - Full request path (combine class-level + method-level paths)
+   - Method parameters with annotations (@RequestParam, @PathVariable, @RequestBody, @ModelAttribute, etc.)
+   - Return type
+
+3. **Dependencies**
+   - All @Autowired fields (field name and type)
+   - All @Resource fields
+   - Constructor injection dependencies
+
+4. **Confidence Assessment**
+   - Rate your confidence (0.0-1.0) in the analysis accuracy
+   - Note any ambiguities, unclear patterns, or assumptions made
+
+# Input
+
+File: {file_path}
+
+```java
+{code}
+```
+
+# Output Format
+
+Return ONLY valid JSON (no markdown code blocks, no explanation, no additional text):
+
+{{
+  "class_name": "string",
+  "package": "string",
+  "class_level_mapping": "string or null",
+  "controller_type": "@Controller or @RestController",
+  "mappings": [
+    {{
+      "method_name": "string",
+      "path": "string",
+      "http_method": "GET|POST|PUT|DELETE|PATCH",
+      "parameters": [
+        {{
+          "name": "string",
+          "type": "string",
+          "annotation": "string"
+        }}
+      ],
+      "return_type": "string"
+    }}
+  ],
+  "dependencies": [
+    {{
+      "field_name": "string",
+      "type": "string",
+      "annotation": "@Autowired|@Resource|Constructor"
+    }}
+  ],
+  "confidence": 0.95,
+  "notes": "Any observations, ambiguities, or assumptions"
+}}
+
+# Important Guidelines
+
+1. **Path Combination**: Always combine class-level and method-level @RequestMapping paths
+   - Example: Class has @RequestMapping("/users"), method has @GetMapping("/list")
+   - Correct combined path: "/users/list"
+
+2. **HTTP Methods**: Extract from annotation type:
+   - @GetMapping → GET
+   - @PostMapping → POST
+   - @PutMapping → PUT
+   - @DeleteMapping → DELETE
+   - @PatchMapping → PATCH
+   - @RequestMapping(method=RequestMethod.GET) → GET
+
+3. **Parameter Annotations**: Include the full annotation with any attributes:
+   - Examples: "@RequestParam", "@RequestParam(value=\"id\", required=false)", "@PathVariable(\"userId\")"
+
+4. **Confidence Scoring**:
+   - 0.9-1.0: Very clear, standard Spring MVC pattern, no ambiguities
+   - 0.8-0.9: Clear structure with minor ambiguities (e.g., missing package statement)
+   - 0.7-0.8: Some ambiguities but reasonable inferences made
+   - < 0.7: High ambiguity, uncertain about key elements
+
+5. **Return Type**: Extract the full return type including generics:
+   - Examples: "ModelAndView", "String", "ResponseEntity<User>", "List<UserDTO>"
+   - For wildcards: "List<?>" or "Map<String, ?>"
+   - For nested generics: "Map<String, List<User>>" (preserve full structure)
+
+6. **Multiple Annotations**: If a parameter has multiple annotations, include all:
+   - Example: "@Valid @RequestBody" (space-separated)
+
+Return ONLY the JSON object, nothing else.

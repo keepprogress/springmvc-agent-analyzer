@@ -1,0 +1,76 @@
+{
+  "class_name": "UserPatchController",
+  "package": "com.example.api",
+  "class_level_mapping": "/api/users",
+  "controller_type": "@RestController",
+  "mappings": [
+    {
+      "method_name": "patchUser",
+      "path": "/api/users/{id}",
+      "http_method": "PATCH",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "patchRequest",
+          "type": "UserPatchRequest",
+          "annotation": "@Valid @RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<User>"
+    },
+    {
+      "method_name": "updateStatus",
+      "path": "/api/users/{id}/status",
+      "http_method": "PATCH",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "annotation": "@RequestParam(\"status\")"
+        }
+      ],
+      "return_type": "ResponseEntity<Void>"
+    },
+    {
+      "method_name": "updatePreference",
+      "path": "/api/users/{userId}/preferences/{prefKey}",
+      "http_method": "PATCH",
+      "parameters": [
+        {
+          "name": "userId",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "prefKey",
+          "type": "String",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "value",
+          "type": "String",
+          "annotation": "@RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<String>"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "userService",
+      "type": "UserService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 0.96,
+  "notes": "Uses @PatchMapping for partial updates, multiple path variables, validation annotations"
+}

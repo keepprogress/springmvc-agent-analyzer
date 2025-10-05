@@ -1,0 +1,68 @@
+{
+  "class_name": "ReportController",
+  "package": "com.example.web",
+  "class_level_mapping": "/reports",
+  "controller_type": "@Controller",
+  "mappings": [
+    {
+      "method_name": "generateReport",
+      "path": "/reports/generate",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "reportType",
+          "type": "String",
+          "annotation": "@RequestParam(\"type\")"
+        },
+        {
+          "name": "format",
+          "type": "String",
+          "annotation": "@RequestParam(value = \"format\", defaultValue = \"pdf\")"
+        }
+      ],
+      "return_type": "String"
+    },
+    {
+      "method_name": "exportReport",
+      "path": "/reports/export",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "report",
+          "type": "Report",
+          "annotation": "@RequestBody"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "reportService",
+      "type": "ReportService",
+      "annotation": "@Autowired"
+    },
+    {
+      "field_name": "exportService",
+      "type": "ExportService",
+      "annotation": "@Resource"
+    },
+    {
+      "field_name": "notificationService",
+      "type": "NotificationService",
+      "annotation": "@Autowired"
+    },
+    {
+      "field_name": "auditService",
+      "type": "AuditService",
+      "annotation": "Constructor"
+    },
+    {
+      "field_name": "securityService",
+      "type": "SecurityService",
+      "annotation": "Constructor"
+    }
+  ],
+  "confidence": 0.95,
+  "notes": "Multiple dependencies with mixed injection types: @Autowired, @Resource, and Constructor injection"
+}

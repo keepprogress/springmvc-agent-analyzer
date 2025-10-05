@@ -1,0 +1,78 @@
+{
+  "class_name": "EdgeCaseController",
+  "package": "com.example.api.v2",
+  "class_level_mapping": "/api/v2/edge",
+  "controller_type": "@RestController",
+  "mappings": [
+    {
+      "method_name": "getWildcard",
+      "path": "/api/v2/edge/wildcard",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "ResponseEntity<List<?>>"
+    },
+    {
+      "method_name": "withHeaders",
+      "path": "/api/v2/edge/headers",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "customHeader",
+          "type": "String",
+          "annotation": "@RequestHeader(\"X-Custom-Header\")"
+        },
+        {
+          "name": "auth",
+          "type": "String",
+          "annotation": "@RequestHeader(value = \"Authorization\", required = false)"
+        },
+        {
+          "name": "body",
+          "type": "Map<String, ?>",
+          "annotation": "@RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<Map<String, Object>>"
+    },
+    {
+      "method_name": "multiMethod",
+      "path": "/api/v2/edge/multi",
+      "http_method": "GET|POST",
+      "parameters": [
+        {
+          "name": "param",
+          "type": "String",
+          "annotation": "@RequestParam(required = false)"
+        }
+      ],
+      "return_type": "ResponseEntity<String>"
+    },
+    {
+      "method_name": "matrixParams",
+      "path": "/api/v2/edge/matrix/{id}",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        },
+        {
+          "name": "filter",
+          "type": "String",
+          "annotation": "@MatrixVariable(required = false)"
+        }
+      ],
+      "return_type": "ResponseEntity<Object>"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "edgeCaseService",
+      "type": "EdgeCaseService",
+      "annotation": "@Resource(name = \"edgeCaseService\")"
+    }
+  ],
+  "confidence": 0.88,
+  "notes": "Edge cases: @RequestHeader, @MatrixVariable, wildcard generics, multiple HTTP methods on same path, @Resource with name attribute"
+}

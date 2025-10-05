@@ -1,0 +1,63 @@
+{
+  "class_name": "DataController",
+  "package": "com.example.api",
+  "class_level_mapping": "/api/data",
+  "controller_type": "@RestController",
+  "mappings": [
+    {
+      "method_name": "getComplexData",
+      "path": "/api/data/complex",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "ResponseEntity<Map<String, List<Map<String, Object>>>>"
+    },
+    {
+      "method_name": "processNested",
+      "path": "/api/data/nested",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "Map<String, List<String>>",
+          "annotation": "@RequestBody"
+        }
+      ],
+      "return_type": "ResponseEntity<List<Map<String, Set<String>>>>"
+    },
+    {
+      "method_name": "getGeneric",
+      "path": "/api/data/generic/{id}",
+      "http_method": "GET",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "Long",
+          "annotation": "@PathVariable"
+        }
+      ],
+      "return_type": "ResponseEntity<Map<String, ?>>"
+    },
+    {
+      "method_name": "getCollection",
+      "path": "/api/data/collection",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "String",
+          "annotation": "@RequestParam(\"type\")"
+        }
+      ],
+      "return_type": "ResponseEntity<List<? extends BaseDTO>>"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "dataService",
+      "type": "DataService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 0.92,
+  "notes": "Complex nested generics including Map<String, List<Map<String, Object>>>, wildcards with ? and ? extends, challenging type extraction"
+}

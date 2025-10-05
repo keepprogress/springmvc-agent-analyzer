@@ -1,0 +1,37 @@
+{
+  "class_name": "UserController",
+  "package": "com.example.web",
+  "class_level_mapping": "/users",
+  "controller_type": "@Controller",
+  "mappings": [
+    {
+      "method_name": "listUsers",
+      "path": "/users/list",
+      "http_method": "GET",
+      "parameters": [],
+      "return_type": "ModelAndView"
+    },
+    {
+      "method_name": "saveUser",
+      "path": "/users/save",
+      "http_method": "POST",
+      "parameters": [
+        {
+          "name": "user",
+          "type": "User",
+          "annotation": "@ModelAttribute"
+        }
+      ],
+      "return_type": "ModelAndView"
+    }
+  ],
+  "dependencies": [
+    {
+      "field_name": "userService",
+      "type": "UserService",
+      "annotation": "@Autowired"
+    }
+  ],
+  "confidence": 1.0,
+  "notes": "Standard Spring MVC pattern with clear structure, package present, class-level mapping"
+}
