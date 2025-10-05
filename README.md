@@ -129,14 +129,40 @@ cp config/oracle_config.example.yaml config/oracle_config.yaml
 
 #### As MCP Server (Recommended)
 
-```bash
-# Start MCP server
-python -m mcp.server
+**Configure Claude Code MCP Settings:**
 
-# In Claude Code CLI:
-# The server auto-registers with Claude Code
-# Use slash commands or MCP tools directly
+Add to your Claude Code MCP configuration (`.claude/mcp_settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "springmvc-analyzer": {
+      "command": "python",
+      "args": ["/absolute/path/to/springmvc-agent-analyzer/run_mcp_server.py"],
+      "env": {
+        "ANTHROPIC_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
 ```
+
+**Or start manually:**
+
+```bash
+# Start MCP server (communicates via stdio)
+python run_mcp_server.py
+
+# The server exposes tools that Claude Code can use:
+# - analyze_file: Analyze single file
+# - analyze_directory: Batch analyze + build graph
+# - query_graph: Query knowledge graph
+# - find_dependencies: Dependency analysis
+# - analyze_impact: Impact analysis
+# - export_graph: Export to visualization formats
+```
+
+See [MCP Integration Guide](docs/MCP_INTEGRATION.md) for detailed usage.
 
 #### Programmatic API
 

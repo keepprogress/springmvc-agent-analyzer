@@ -1,8 +1,10 @@
 """
-MCP (Model Context Protocol) server implementation.
+MCP (Model Context Protocol) Server for SpringMVC Agent Analyzer.
 
-Exposes agent analysis capabilities as MCP tools for integration
-with Claude Code and other MCP clients.
+Provides Claude Code integration through MCP protocol, exposing analysis
+tools and resources for interactive code understanding.
 """
 
-__all__ = []
+from mcp.server import SpringMVCAnalyzerServer
+
+__all__ = ["SpringMVCAnalyzerServer"]
