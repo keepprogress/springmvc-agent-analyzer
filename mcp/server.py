@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import json
+from datetime import datetime, timedelta
 
 # MCP SDK imports
 from mcp.server import Server, NotificationOptions
@@ -70,7 +71,11 @@ class SpringMVCAnalyzerServer:
 
         # Analysis state
         self.analysis_results = {}  # file_path -> result
+        self.result_timestamps = {}  # file_path -> timestamp
         self.current_project = None
+
+        # Rate limiting
+        self.request_history = []  # List of request timestamps
 
         # Register handlers
         self._register_handlers()
@@ -99,6 +104,13 @@ class SpringMVCAnalyzerServer:
             },
             "agents": {
                 "min_confidence": 0.7
+            },
+            "mcp": {
+                "result_max_age_seconds": 3600,  # 1 hour
+                "auto_cleanup": True,
+                "rate_limit_enabled": True,
+                "rate_limit_requests_per_minute": 60,
+                "rate_limit_burst": 10  # Allow burst of requests
             }
         }
 
@@ -287,9 +299,19 @@ class SpringMVCAnalyzerServer:
             name: str, arguments: dict
         ) -> List[types.TextContent | types.ImageContent | types.EmbeddedResource]:
             """Handle tool calls."""
-            await self._initialize_components()
-
             try:
+                # Check rate limits
+                self.check_rate_limit()
+
+                # Initialize components if needed
+                await self._initialize_components()
+
+                # Auto-cleanup old results if enabled
+                if self.config.get("mcp", {}).get("auto_cleanup", True):
+                    max_age = self.config.get("mcp", {}).get("result_max_age_seconds", 3600)
+                    self.clear_old_results(max_age)
+
+                # Execute tool
                 if name == "analyze_file":
                     result = await self._tool_analyze_file(arguments)
                 elif name == "analyze_directory":
@@ -364,8 +386,9 @@ class SpringMVCAnalyzerServer:
         agent = self.agents[agent_type]
         result = await agent.analyze(file_path)
 
-        # Store result
+        # Store result with timestamp
         self.analysis_results[file_path] = result
+        self.result_timestamps[file_path] = datetime.now()
 
         return {
             "file_path": file_path,
@@ -377,22 +400,46 @@ class SpringMVCAnalyzerServer:
         """Implement analyze_directory tool."""
         directory_path = arguments["directory_path"]
         pattern = arguments.get("pattern", "**/*.java")
+        timeout_per_file = arguments.get("timeout_per_file", 300.0)  # 5 minutes default
 
         # Find files
         directory = Path(directory_path)
         files = list(directory.glob(pattern))
+        total_files = len(files)
 
-        results_count = {"analyzed": 0, "failed": 0}
+        self.logger.info(f"Starting directory analysis: {total_files} files matching '{pattern}'")
 
-        # Analyze each file
-        for file_path in files:
+        results_count = {"analyzed": 0, "failed": 0, "timeout": 0}
+
+        # Analyze each file with timeout
+        for idx, file_path in enumerate(files, 1):
             try:
                 agent_type = self._detect_agent_type(str(file_path))
                 if agent_type:
                     agent = self.agents[agent_type]
-                    result = await agent.analyze(str(file_path))
+
+                    # Add timeout to prevent hanging on large files
+                    result = await asyncio.wait_for(
+                        agent.analyze(str(file_path)),
+                        timeout=timeout_per_file
+                    )
+
                     self.analysis_results[str(file_path)] = result
                     results_count["analyzed"] += 1
+
+                    # Log progress
+                    if idx % 10 == 0 or idx == total_files:
+                        self.logger.info(
+                            f"Progress: {idx}/{total_files} files "
+                            f"(analyzed: {results_count['analyzed']}, "
+                            f"failed: {results_count['failed']})"
+                        )
+
+            except asyncio.TimeoutError:
+                self.logger.error(f"Timeout analyzing {file_path} (>{timeout_per_file}s)")
+                results_count["timeout"] += 1
+                results_count["failed"] += 1
+
             except Exception as e:
                 self.logger.error(f"Failed to analyze {file_path}: {e}")
                 results_count["failed"] += 1
@@ -537,6 +584,81 @@ class SpringMVCAnalyzerServer:
             return "procedure"
 
         return None
+
+    def clear_old_results(self, max_age_seconds: int = 3600) -> int:
+        """
+        Clear analysis results older than specified age.
+
+        Args:
+            max_age_seconds: Maximum age of results to keep (default: 3600 = 1 hour)
+
+        Returns:
+            Number of results removed
+        """
+        cutoff = datetime.now() - timedelta(seconds=max_age_seconds)
+
+        # Find old results
+        old_results = [
+            path for path, timestamp in self.result_timestamps.items()
+            if timestamp < cutoff
+        ]
+
+        # Remove old results
+        for path in old_results:
+            del self.analysis_results[path]
+            del self.result_timestamps[path]
+
+        if old_results:
+            self.logger.info(
+                f"Cleaned up {len(old_results)} results older than {max_age_seconds}s"
+            )
+
+        return len(old_results)
+
+    def check_rate_limit(self) -> bool:
+        """
+        Check if current request is within rate limits.
+
+        Returns:
+            True if request is allowed, False if rate limited
+
+        Raises:
+            Exception: If rate limit is exceeded
+        """
+        if not self.config.get("mcp", {}).get("rate_limit_enabled", True):
+            return True
+
+        now = datetime.now()
+        window_start = now - timedelta(minutes=1)
+        requests_per_minute = self.config.get("mcp", {}).get("rate_limit_requests_per_minute", 60)
+        burst_limit = self.config.get("mcp", {}).get("rate_limit_burst", 10)
+
+        # Clean old requests outside window
+        self.request_history = [
+            ts for ts in self.request_history
+            if ts > window_start
+        ]
+
+        # Check burst limit (last 10 seconds)
+        burst_window_start = now - timedelta(seconds=10)
+        recent_requests = sum(1 for ts in self.request_history if ts > burst_window_start)
+
+        if recent_requests >= burst_limit:
+            raise Exception(
+                f"Rate limit exceeded: {recent_requests} requests in 10 seconds "
+                f"(burst limit: {burst_limit})"
+            )
+
+        # Check per-minute limit
+        if len(self.request_history) >= requests_per_minute:
+            raise Exception(
+                f"Rate limit exceeded: {len(self.request_history)} requests per minute "
+                f"(limit: {requests_per_minute})"
+            )
+
+        # Record this request
+        self.request_history.append(now)
+        return True
 
     async def run(self):
         """Run the MCP server."""

@@ -10,6 +10,7 @@ from pathlib import Path
 import logging
 import networkx as nx
 import json
+import itertools
 
 from graph.schema import Node, Edge, NodeType, EdgeType, GraphSchema
 
@@ -160,10 +161,12 @@ class GraphBuilder:
         nodes_added = 0
         edges_added = 0
 
-        self.logger.info(f"Building graph from {len(analysis_results)} analysis results")
+        total_results = len(analysis_results)
+        self.logger.info(f"Building graph from {total_results} analysis results")
 
         # First pass: Create all nodes
-        for file_path, result in analysis_results.items():
+        self.logger.info(f"Phase 1/2: Creating nodes from {total_results} results")
+        for idx, (file_path, result) in enumerate(analysis_results.items(), 1):
             agent_type = result.get("agent", "unknown")
             analysis = result.get("analysis", {})
             confidence = result.get("confidence", 0.0)
@@ -186,8 +189,15 @@ class GraphBuilder:
             if node and self.add_node(node):
                 nodes_added += 1
 
+            # Log progress every 20 nodes or at the end
+            if idx % 20 == 0 or idx == total_results:
+                self.logger.info(f"  Progress: {idx}/{total_results} nodes processed")
+
+        self.logger.info(f"Phase 1/2 complete: {nodes_added} nodes created")
+
         # Second pass: Create edges (relationships)
-        for file_path, result in analysis_results.items():
+        self.logger.info(f"Phase 2/2: Extracting relationships from {total_results} results")
+        for idx, (file_path, result) in enumerate(analysis_results.items(), 1):
             agent_type = result.get("agent", "unknown")
             analysis = result.get("analysis", {})
 
@@ -203,6 +213,11 @@ class GraphBuilder:
             elif agent_type == "procedure":
                 edges_added += self._extract_procedure_edges(file_path, analysis)
 
+            # Log progress every 20 files or at the end
+            if idx % 20 == 0 or idx == total_results:
+                self.logger.info(f"  Progress: {idx}/{total_results} relationships extracted")
+
+        self.logger.info(f"Phase 2/2 complete: {edges_added} edges created")
         self.logger.info(
             f"Graph built: {nodes_added} nodes added, {edges_added} edges added"
         )
@@ -1042,7 +1057,13 @@ class GraphBuilder:
 
         Returns:
             Set of all dependent nodes
+
+        Raises:
+            ValueError: If max_depth is negative
         """
+        if max_depth is not None and max_depth < 0:
+            raise ValueError(f"max_depth must be non-negative, got {max_depth}")
+
         if node_id not in self.graph:
             return set()
 
@@ -1088,7 +1109,13 @@ class GraphBuilder:
 
         Returns:
             Set of all dependent nodes (nodes that depend on this node)
+
+        Raises:
+            ValueError: If max_depth is negative
         """
+        if max_depth is not None and max_depth < 0:
+            raise ValueError(f"max_depth must be non-negative, got {max_depth}")
+
         if node_id not in self.graph:
             return set()
 
@@ -1282,13 +1309,16 @@ class GraphBuilder:
             nx.weakly_connected_components(self.graph), default=[], key=len
         ))
 
-        # Check for cycles
+        # Check for cycles (limit to prevent exponential time on large graphs)
         try:
-            cycles = list(nx.simple_cycles(self.graph))
+            # Limit cycle detection for performance - only check first 1000 cycles
+            cycles_iter = nx.simple_cycles(self.graph)
+            cycles = list(itertools.islice(cycles_iter, 1000))
             has_cycles = len(cycles) > 0
-            num_cycles = len(cycles)
-        except:
-            # Some graphs may be too large for cycle detection
+            num_cycles = len(cycles) if len(cycles) < 1000 else "1000+"
+        except (nx.NetworkXError, MemoryError, RecursionError) as e:
+            # Graph may be too large or complex for cycle detection
+            self.logger.warning(f"Cycle detection failed: {e}")
             has_cycles = False
             num_cycles = 0
 
@@ -1589,6 +1619,122 @@ class GraphBuilder:
 
         self.logger.info(
             f"Indices rebuilt: {len(self.nodes)} nodes, {len(self.file_index)} file mappings"
+        )
+
+    def diff_graphs(self, other: 'GraphBuilder') -> Dict[str, Any]:
+        """
+        Compare this graph with another graph to find differences.
+
+        Args:
+            other: Another GraphBuilder instance to compare against
+
+        Returns:
+            Dictionary containing:
+            {
+                "nodes_added": List[str],  # Node IDs in other but not in self
+                "nodes_removed": List[str],  # Node IDs in self but not in other
+                "nodes_modified": List[Dict],  # Nodes with changed metadata
+                "edges_added": List[Dict],  # Edges in other but not in self
+                "edges_removed": List[Dict],  # Edges in self but not in other
+                "summary": {
+                    "total_changes": int,
+                    "has_changes": bool
+                }
+            }
+        """
+        diff = {
+            "nodes_added": [],
+            "nodes_removed": [],
+            "nodes_modified": [],
+            "edges_added": [],
+            "edges_removed": []
+        }
+
+        # Compare nodes
+        self_node_ids = set(self.nodes.keys())
+        other_node_ids = set(other.nodes.keys())
+
+        # Nodes added in other
+        diff["nodes_added"] = list(other_node_ids - self_node_ids)
+
+        # Nodes removed in other
+        diff["nodes_removed"] = list(self_node_ids - other_node_ids)
+
+        # Check for modified nodes (same ID but different metadata)
+        common_nodes = self_node_ids & other_node_ids
+        for node_id in common_nodes:
+            self_node = self.nodes[node_id]
+            other_node = other.nodes[node_id]
+
+            # Compare metadata
+            if self_node.metadata != other_node.metadata:
+                diff["nodes_modified"].append({
+                    "node_id": node_id,
+                    "old_metadata": self_node.metadata,
+                    "new_metadata": other_node.metadata
+                })
+
+        # Compare edges
+        self_edges = set()
+        for u, v, key, data in self.graph.edges(keys=True, data=True):
+            self_edges.add((u, v, data.get("type")))
+
+        other_edges = set()
+        for u, v, key, data in other.graph.edges(keys=True, data=True):
+            other_edges.add((u, v, data.get("type")))
+
+        # Edges added
+        for edge in other_edges - self_edges:
+            diff["edges_added"].append({
+                "source": edge[0],
+                "target": edge[1],
+                "type": edge[2]
+            })
+
+        # Edges removed
+        for edge in self_edges - other_edges:
+            diff["edges_removed"].append({
+                "source": edge[0],
+                "target": edge[1],
+                "type": edge[2]
+            })
+
+        # Summary
+        total_changes = (
+            len(diff["nodes_added"]) +
+            len(diff["nodes_removed"]) +
+            len(diff["nodes_modified"]) +
+            len(diff["edges_added"]) +
+            len(diff["edges_removed"])
+        )
+
+        diff["summary"] = {
+            "total_changes": total_changes,
+            "has_changes": total_changes > 0,
+            "nodes_changed": len(diff["nodes_added"]) + len(diff["nodes_removed"]) + len(diff["nodes_modified"]),
+            "edges_changed": len(diff["edges_added"]) + len(diff["edges_removed"])
+        }
+
+        return diff
+
+    def clear_old_results(self, max_age_seconds: int = 3600):
+        """
+        Clear analysis results older than specified age.
+
+        This method can be used to free memory when analysis results
+        are no longer needed.
+
+        Args:
+            max_age_seconds: Maximum age of results to keep (default: 1 hour)
+
+        Note:
+            This is a placeholder for future implementation when timestamp
+            tracking is added to nodes.
+        """
+        # Future enhancement: Track node creation timestamps and remove old ones
+        self.logger.info(
+            f"clear_old_results called with max_age={max_age_seconds}s "
+            "(not yet implemented - requires timestamp tracking)"
         )
 
     def __repr__(self) -> str:
