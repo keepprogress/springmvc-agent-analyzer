@@ -1,0 +1,154 @@
+You are a MyBatis XML Mapper expert analyzer.
+
+Analyze the following MyBatis XML Mapper file and extract its structure, SQL queries, and mappings.
+
+# Task
+
+Extract the following information from the MyBatis Mapper:
+
+1. **Mapper Information**
+   - Namespace (fully qualified interface name)
+   - File name
+
+2. **SQL Statements**
+   - Statement ID (maps to interface method)
+   - Statement type (select, insert, update, delete)
+   - Parameter type (parameterType attribute or inferred)
+   - Result type (resultType, resultMap reference)
+   - SQL query text (actual SQL with placeholders)
+
+3. **Parameter Mappings**
+   - Parameter names from #{param} syntax
+   - Direct substitutions from ${param} syntax (note: SQL injection risk)
+   - Parameter object properties
+
+4. **Result Mappings**
+   - ResultMap definitions (id, type, column→property mappings)
+   - Direct resultType specifications
+   - Association and collection mappings (1-1, 1-many)
+
+5. **Dynamic SQL Elements**
+   - <if> conditionals with test conditions
+   - <choose>/<when>/<otherwise> branches
+   - <foreach> loops with collection, item, separator
+   - <where>, <set>, <trim> dynamic blocks
+
+6. **Database Operations**
+   - Tables accessed (from FROM, JOIN, UPDATE, INSERT INTO, DELETE FROM)
+   - Operation type for each statement
+   - Complexity assessment (simple vs complex joins/subqueries)
+
+7. **Confidence Assessment**
+   - Rate your confidence (0.0-1.0) in the analysis accuracy
+   - Note any ambiguities, unclear patterns, or assumptions made
+
+# Input
+
+File: {file_path}
+
+```xml
+{code}
+```
+
+# Output Format
+
+Return ONLY valid JSON (no markdown code blocks, no explanation, no additional text):
+
+{{
+  "file_name": "string",
+  "namespace": "string (fully qualified Java interface)",
+  "statements": [
+    {{
+      "id": "string (method name)",
+      "type": "select|insert|update|delete",
+      "parameter_type": "string or null",
+      "result_type": "string or resultMap reference",
+      "sql": "SQL query text",
+      "parameters": ["param1", "param2"],
+      "tables": ["table1", "table2"],
+      "dynamic_sql": {{
+        "has_conditionals": true|false,
+        "has_loops": true|false,
+        "elements": ["if", "foreach", "choose", etc]
+      }},
+      "complexity": "simple|medium|complex"
+    }}
+  ],
+  "result_maps": [
+    {{
+      "id": "string",
+      "type": "string (Java class)",
+      "mappings": [
+        {{
+          "column": "string",
+          "property": "string",
+          "jdbc_type": "string or null"
+        }}
+      ],
+      "associations": [
+        {{
+          "property": "string",
+          "java_type": "string",
+          "select": "string (statement id) or null"
+        }}
+      ]
+    }}
+  ],
+  "tables_accessed": ["table1", "table2", "table3"],
+  "confidence": 0.95,
+  "notes": "Any observations, ambiguities, or assumptions"
+}}
+
+# Important Guidelines
+
+1. **Namespace Extraction**:
+   - Extract from <mapper namespace="com.example.dao.UserMapper">
+   - This is the fully qualified interface name
+
+2. **Statement ID to Method Mapping**:
+   - <select id="findById"> → method name is "findById"
+   - This maps directly to interface method
+
+3. **Parameter Extraction**:
+   - #{id} → parameter named "id"
+   - #{user.name} → parameter object "user" with property "name"
+   - ${tableName} → direct substitution (SQL injection risk, note this)
+
+4. **SQL Text Cleaning**:
+   - Extract SQL text, preserve structure
+   - Replace dynamic elements with placeholders in notes
+   - Keep readable format
+
+5. **Table Detection**:
+   - FROM users → "users"
+   - JOIN orders o → "orders"
+   - UPDATE products → "products"
+   - Extract all unique table names
+
+6. **Dynamic SQL Analysis**:
+   - <if test="name != null"> → conditional on "name" parameter
+   - <foreach collection="ids" item="id" separator=","> → loop over "ids"
+   - Mark statements with dynamic SQL clearly
+
+7. **ResultMap Parsing**:
+   - Extract id, type (Java class)
+   - Map each <result column="user_name" property="userName"/>
+   - Note associations: <association property="address" javaType="Address">
+
+8. **Complexity Assessment**:
+   - simple: Single table, no joins, no dynamic SQL
+   - medium: Joins, some dynamic SQL, or subqueries
+   - complex: Multiple joins, complex dynamic SQL, nested subqueries
+
+9. **SQL Injection Risk Detection**:
+   - ${param} is direct substitution → SQL injection risk
+   - #{param} is parameterized → safe
+   - Note any ${} usage in notes
+
+10. **Confidence Scoring**:
+    - 0.9-1.0: Clear XML structure, all mappings explicit
+    - 0.8-0.9: Clear structure, some inferred types
+    - 0.7-0.8: Some ambiguous mappings or complex dynamic SQL
+    - < 0.7: Unclear structure, many unknowns
+
+Return ONLY the JSON object, nothing else.

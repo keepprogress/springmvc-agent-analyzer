@@ -1,0 +1,152 @@
+[
+  {
+    "description": "Simple procedure with IN/OUT parameters and basic SQL",
+    "input": "CREATE OR REPLACE PROCEDURE get_user_info(\n    p_user_id IN NUMBER,\n    p_username OUT VARCHAR2,\n    p_email OUT VARCHAR2,\n    p_status OUT VARCHAR2\n) IS\nBEGIN\n    SELECT username, email, status\n    INTO p_username, p_email, p_status\n    FROM users\n    WHERE user_id = p_user_id;\n    \n    IF SQL%NOTFOUND THEN\n        RAISE_APPLICATION_ERROR(-20001, 'User not found');\n    END IF;\nEXCEPTION\n    WHEN NO_DATA_FOUND THEN\n        p_status := 'NOT_FOUND';\n    WHEN OTHERS THEN\n        RAISE;\nEND get_user_info;",
+    "output": {
+      "procedure_name": "get_user_info",
+      "package_name": null,
+      "description": "Retrieves user information by user ID",
+      "parameters": [
+        {
+          "name": "p_user_id",
+          "data_type": "NUMBER",
+          "direction": "IN",
+          "default_value": null,
+          "description": "User ID to search for"
+        },
+        {
+          "name": "p_username",
+          "data_type": "VARCHAR2",
+          "direction": "OUT",
+          "default_value": null,
+          "description": "Output parameter for username"
+        },
+        {
+          "name": "p_email",
+          "data_type": "VARCHAR2",
+          "direction": "OUT",
+          "default_value": null,
+          "description": "Output parameter for email"
+        },
+        {
+          "name": "p_status",
+          "data_type": "VARCHAR2",
+          "direction": "OUT",
+          "default_value": null,
+          "description": "Output parameter for user status"
+        }
+      ],
+      "sql_operations": [
+        {
+          "type": "SELECT",
+          "tables": ["users"],
+          "key_columns": ["user_id"],
+          "purpose": "Retrieve user details by ID"
+        }
+      ],
+      "cursors": [],
+      "control_flow": {
+        "has_loops": false,
+        "has_conditionals": true,
+        "has_exception_handling": true,
+        "has_transaction_control": false,
+        "complexity": "simple"
+      },
+      "business_patterns": [
+        "validation",
+        "error-handling"
+      ],
+      "tables_accessed": ["users"],
+      "confidence": 0.98,
+      "notes": "Simple procedure with SELECT INTO pattern, includes error handling for not found case"
+    }
+  },
+  {
+    "description": "Complex procedure with cursor, loop, and transaction control",
+    "input": "CREATE OR REPLACE PROCEDURE process_orders(\n    p_customer_id IN NUMBER,\n    p_process_date IN DATE DEFAULT SYSDATE,\n    p_total_processed OUT NUMBER\n) IS\n    -- Cursor to fetch pending orders\n    CURSOR c_orders IS\n        SELECT order_id, order_amount, order_status\n        FROM orders\n        WHERE customer_id = p_customer_id\n          AND order_status = 'PENDING'\n          AND order_date <= p_process_date;\n    \n    v_processed_count NUMBER := 0;\n    v_total_amount NUMBER := 0;\nBEGIN\n    -- Loop through pending orders\n    FOR order_rec IN c_orders LOOP\n        BEGIN\n            -- Update order status\n            UPDATE orders\n            SET order_status = 'PROCESSED',\n                processed_date = SYSDATE\n            WHERE order_id = order_rec.order_id;\n            \n            -- Insert into order history\n            INSERT INTO order_history (\n                order_id, previous_status, new_status, processed_by, processed_date\n            ) VALUES (\n                order_rec.order_id, 'PENDING', 'PROCESSED', USER, SYSDATE\n            );\n            \n            -- Update customer balance\n            UPDATE customers\n            SET total_orders = total_orders + 1,\n                total_spent = total_spent + order_rec.order_amount\n            WHERE customer_id = p_customer_id;\n            \n            v_processed_count := v_processed_count + 1;\n            v_total_amount := v_total_amount + order_rec.order_amount;\n            \n        EXCEPTION\n            WHEN OTHERS THEN\n                -- Log error and continue\n                INSERT INTO error_log (error_message, error_time)\n                VALUES ('Failed to process order ' || order_rec.order_id, SYSDATE);\n        END;\n    END LOOP;\n    \n    -- Commit all changes\n    COMMIT;\n    \n    -- Return total processed\n    p_total_processed := v_processed_count;\n    \nEXCEPTION\n    WHEN OTHERS THEN\n        ROLLBACK;\n        RAISE_APPLICATION_ERROR(-20002, 'Order processing failed: ' || SQLERRM);\nEND process_orders;",
+    "output": {
+      "procedure_name": "process_orders",
+      "package_name": null,
+      "description": "Processes pending orders for a customer",
+      "parameters": [
+        {
+          "name": "p_customer_id",
+          "data_type": "NUMBER",
+          "direction": "IN",
+          "default_value": null,
+          "description": "Customer ID to process orders for"
+        },
+        {
+          "name": "p_process_date",
+          "data_type": "DATE",
+          "direction": "IN",
+          "default_value": "SYSDATE",
+          "description": "Process orders up to this date"
+        },
+        {
+          "name": "p_total_processed",
+          "data_type": "NUMBER",
+          "direction": "OUT",
+          "default_value": null,
+          "description": "Total number of orders processed"
+        }
+      ],
+      "sql_operations": [
+        {
+          "type": "SELECT",
+          "tables": ["orders"],
+          "key_columns": ["customer_id", "order_status", "order_date"],
+          "purpose": "Fetch pending orders for customer"
+        },
+        {
+          "type": "UPDATE",
+          "tables": ["orders"],
+          "key_columns": ["order_id"],
+          "purpose": "Mark order as processed"
+        },
+        {
+          "type": "INSERT",
+          "tables": ["order_history"],
+          "key_columns": ["order_id"],
+          "purpose": "Record order status change in history"
+        },
+        {
+          "type": "UPDATE",
+          "tables": ["customers"],
+          "key_columns": ["customer_id"],
+          "purpose": "Update customer statistics"
+        },
+        {
+          "type": "INSERT",
+          "tables": ["error_log"],
+          "key_columns": [],
+          "purpose": "Log processing errors"
+        }
+      ],
+      "cursors": [
+        {
+          "name": "c_orders",
+          "parameters": [],
+          "select_statement": "SELECT order_id, order_amount, order_status FROM orders WHERE customer_id = p_customer_id AND order_status = 'PENDING' AND order_date <= p_process_date",
+          "purpose": "Retrieve pending orders for processing"
+        }
+      ],
+      "control_flow": {
+        "has_loops": true,
+        "has_conditionals": false,
+        "has_exception_handling": true,
+        "has_transaction_control": true,
+        "complexity": "complex"
+      },
+      "business_patterns": [
+        "batch-processing",
+        "calculation",
+        "error-handling",
+        "transformation"
+      ],
+      "tables_accessed": ["orders", "order_history", "customers", "error_log"],
+      "confidence": 0.95,
+      "notes": "Complex procedure with cursor loop, multiple DML operations, nested exception handling, and transaction control (COMMIT/ROLLBACK). Processes orders in batch and maintains audit trail."
+    }
+  }
+]

@@ -1,0 +1,247 @@
+[
+  {
+    "description": "Simple JSP with JSTL displaying a list of users",
+    "input": "<%@ page contentType=\"text/html;charset=UTF-8\" language=\"java\" %>\n<%@ taglib prefix=\"c\" uri=\"http://java.sun.com/jsp/jstl/core\" %>\n<%@ taglib prefix=\"fmt\" uri=\"http://java.sun.com/jsp/jstl/fmt\" %>\n<!DOCTYPE html>\n<html>\n<head>\n    <title>User List</title>\n</head>\n<body>\n    <h1>Users</h1>\n    <table>\n        <c:forEach items=\"${users}\" var=\"user\">\n            <tr>\n                <td>${user.id}</td>\n                <td>${user.name}</td>\n                <td>${user.email}</td>\n                <td><fmt:formatDate value=\"${user.createdAt}\" pattern=\"yyyy-MM-dd\"/></td>\n            </tr>\n        </c:forEach>\n    </table>\n    <a href=\"${pageContext.request.contextPath}/users/new\">Add New User</a>\n</body>\n</html>",
+    "output": {
+      "file_name": "user_list.jsp",
+      "page_directives": {
+        "imports": [],
+        "content_type": "text/html;charset=UTF-8",
+        "page_encoding": "UTF-8",
+        "error_page": null,
+        "session": true
+      },
+      "tag_libraries": [
+        {
+          "prefix": "c",
+          "uri": "http://java.sun.com/jsp/jstl/core",
+          "type": "jstl"
+        },
+        {
+          "prefix": "fmt",
+          "uri": "http://java.sun.com/jsp/jstl/fmt",
+          "type": "jstl"
+        }
+      ],
+      "model_attributes": [
+        {
+          "name": "users",
+          "type": "List<User>",
+          "usage": "loop"
+        },
+        {
+          "name": "user",
+          "type": "User",
+          "usage": "display"
+        }
+      ],
+      "forms": [],
+      "backend_dependencies": [
+        {
+          "type": "controller-endpoint",
+          "url": "/users/new",
+          "method": "GET",
+          "purpose": "Navigate to add user form"
+        }
+      ],
+      "dynamic_content": {
+        "jstl_loops": ["Iterating over users list to display user details in table"],
+        "conditionals": [],
+        "ajax_calls": []
+      },
+      "confidence": 0.95,
+      "notes": "Clear JSTL usage with list iteration, standard pattern for displaying collections"
+    }
+  },
+  {
+    "description": "Spring Form JSP with form bindings and validation",
+    "input": "<%@ page contentType=\"text/html;charset=UTF-8\" language=\"java\" %>\n<%@ taglib prefix=\"form\" uri=\"http://www.springframework.org/tags/form\" %>\n<%@ taglib prefix=\"c\" uri=\"http://java.sun.com/jsp/jstl/core\" %>\n<!DOCTYPE html>\n<html>\n<head>\n    <title>Product Form</title>\n</head>\n<body>\n    <h1>Product Details</h1>\n    <form:form method=\"POST\" action=\"${pageContext.request.contextPath}/products/save\" modelAttribute=\"product\">\n        <form:hidden path=\"id\"/>\n        \n        <label>Name:</label>\n        <form:input path=\"name\" />\n        <form:errors path=\"name\" cssClass=\"error\"/>\n        \n        <label>Price:</label>\n        <form:input path=\"price\" type=\"number\" step=\"0.01\"/>\n        <form:errors path=\"price\" cssClass=\"error\"/>\n        \n        <label>Category:</label>\n        <form:select path=\"category.id\">\n            <form:options items=\"${categories}\" itemValue=\"id\" itemLabel=\"name\"/>\n        </form:select>\n        \n        <button type=\"submit\">Save</button>\n    </form:form>\n</body>\n</html>",
+    "output": {
+      "file_name": "product_form.jsp",
+      "page_directives": {
+        "imports": [],
+        "content_type": "text/html;charset=UTF-8",
+        "page_encoding": "UTF-8",
+        "error_page": null,
+        "session": true
+      },
+      "tag_libraries": [
+        {
+          "prefix": "form",
+          "uri": "http://www.springframework.org/tags/form",
+          "type": "spring-form"
+        },
+        {
+          "prefix": "c",
+          "uri": "http://java.sun.com/jsp/jstl/core",
+          "type": "jstl"
+        }
+      ],
+      "model_attributes": [
+        {
+          "name": "product",
+          "type": "Product",
+          "usage": "form-binding"
+        },
+        {
+          "name": "categories",
+          "type": "List<Category>",
+          "usage": "display"
+        }
+      ],
+      "forms": [
+        {
+          "action": "/products/save",
+          "method": "POST",
+          "model_attribute": "product",
+          "fields": [
+            {
+              "name": "id",
+              "path": "id",
+              "type": "Long"
+            },
+            {
+              "name": "name",
+              "path": "name",
+              "type": "String"
+            },
+            {
+              "name": "price",
+              "path": "price",
+              "type": "Double"
+            },
+            {
+              "name": "category.id",
+              "path": "category.id",
+              "type": "Long"
+            }
+          ]
+        }
+      ],
+      "backend_dependencies": [
+        {
+          "type": "controller-endpoint",
+          "url": "/products/save",
+          "method": "POST",
+          "purpose": "Submit product form data for save/update"
+        }
+      ],
+      "dynamic_content": {
+        "jstl_loops": [],
+        "conditionals": [],
+        "ajax_calls": []
+      },
+      "confidence": 0.98,
+      "notes": "Spring form with clear model binding, includes validation error display and category dropdown"
+    }
+  },
+  {
+    "description": "JSP with AJAX calls and dynamic content loading",
+    "input": "<%@ page contentType=\"text/html;charset=UTF-8\" language=\"java\" %>\n<%@ taglib prefix=\"c\" uri=\"http://java.sun.com/jsp/jstl/core\" %>\n<!DOCTYPE html>\n<html>\n<head>\n    <title>Order Management</title>\n    <script src=\"https://code.jquery.com/jquery-3.6.0.min.js\"></script>\n    <script>\n        function loadOrderDetails(orderId) {\n            $.ajax({\n                url: '${pageContext.request.contextPath}/api/orders/' + orderId,\n                type: 'GET',\n                success: function(data) {\n                    $('#orderDetails').html(data);\n                }\n            });\n        }\n        \n        function updateOrderStatus(orderId, status) {\n            $.ajax({\n                url: '${pageContext.request.contextPath}/api/orders/' + orderId + '/status',\n                type: 'POST',\n                data: { status: status },\n                success: function(response) {\n                    alert('Status updated');\n                    loadOrderDetails(orderId);\n                }\n            });\n        }\n    </script>\n</head>\n<body>\n    <h1>Orders</h1>\n    <div id=\"orderList\">\n        <c:forEach items=\"${orders}\" var=\"order\">\n            <div onclick=\"loadOrderDetails(${order.id})\">\n                Order #${order.id} - ${order.customerName}\n            </div>\n        </c:forEach>\n    </div>\n    <div id=\"orderDetails\"></div>\n</body>\n</html>",
+    "output": {
+      "file_name": "order_management.jsp",
+      "page_directives": {
+        "imports": [],
+        "content_type": "text/html;charset=UTF-8",
+        "page_encoding": "UTF-8",
+        "error_page": null,
+        "session": true
+      },
+      "tag_libraries": [
+        {
+          "prefix": "c",
+          "uri": "http://java.sun.com/jsp/jstl/core",
+          "type": "jstl"
+        }
+      ],
+      "model_attributes": [
+        {
+          "name": "orders",
+          "type": "List<Order>",
+          "usage": "loop"
+        },
+        {
+          "name": "order",
+          "type": "Order",
+          "usage": "display"
+        }
+      ],
+      "forms": [],
+      "backend_dependencies": [
+        {
+          "type": "ajax-call",
+          "url": "/api/orders/{orderId}",
+          "method": "GET",
+          "purpose": "Load order details dynamically via AJAX"
+        },
+        {
+          "type": "ajax-call",
+          "url": "/api/orders/{orderId}/status",
+          "method": "POST",
+          "purpose": "Update order status via AJAX"
+        }
+      ],
+      "dynamic_content": {
+        "jstl_loops": ["Iterating over orders list to display order summaries"],
+        "conditionals": [],
+        "ajax_calls": [
+          "GET /api/orders/{orderId} - Load order details into #orderDetails div",
+          "POST /api/orders/{orderId}/status - Update order status with status parameter"
+        ]
+      },
+      "confidence": 0.92,
+      "notes": "AJAX-heavy JSP with dynamic content loading, uses jQuery for REST API calls"
+    }
+  },
+  {
+    "description": "Legacy JSP with scriptlets and imports",
+    "input": "<%@ page import=\"java.util.List\" %>\n<%@ page import=\"com.example.model.Report\" %>\n<%@ page import=\"com.example.service.ReportService\" %>\n<%@ page contentType=\"text/html;charset=UTF-8\" language=\"java\" %>\n<%@ page session=\"true\" errorPage=\"/error.jsp\" %>\n<%@ taglib prefix=\"c\" uri=\"http://java.sun.com/jsp/jstl/core\" %>\n<%\n    ReportService reportService = (ReportService) request.getAttribute(\"reportService\");\n    String reportType = request.getParameter(\"type\");\n    List<Report> reports = reportService.getReportsByType(reportType);\n    request.setAttribute(\"reports\", reports);\n%>\n<!DOCTYPE html>\n<html>\n<head>\n    <title>Reports</title>\n</head>\n<body>\n    <h1>Reports - <%= reportType %></h1>\n    <table>\n        <c:forEach items=\"${reports}\" var=\"report\">\n            <tr>\n                <td>${report.id}</td>\n                <td>${report.title}</td>\n                <td><%= new java.text.SimpleDateFormat(\"yyyy-MM-dd\").format(((Report)pageContext.getAttribute(\"report\")).getDate()) %></td>\n            </tr>\n        </c:forEach>\n    </table>\n</body>\n</html>",
+    "output": {
+      "file_name": "legacy_reports.jsp",
+      "page_directives": {
+        "imports": [
+          "java.util.List",
+          "com.example.model.Report",
+          "com.example.service.ReportService"
+        ],
+        "content_type": "text/html;charset=UTF-8",
+        "page_encoding": "UTF-8",
+        "error_page": "/error.jsp",
+        "session": true
+      },
+      "tag_libraries": [
+        {
+          "prefix": "c",
+          "uri": "http://java.sun.com/jsp/jstl/core",
+          "type": "jstl"
+        }
+      ],
+      "model_attributes": [
+        {
+          "name": "reportService",
+          "type": "ReportService",
+          "usage": "display"
+        },
+        {
+          "name": "reports",
+          "type": "List<Report>",
+          "usage": "loop"
+        },
+        {
+          "name": "report",
+          "type": "Report",
+          "usage": "display"
+        }
+      ],
+      "forms": [],
+      "backend_dependencies": [],
+      "dynamic_content": {
+        "jstl_loops": ["Iterating over reports list to display report details"],
+        "conditionals": [],
+        "ajax_calls": []
+      },
+      "confidence": 0.85,
+      "notes": "Legacy JSP with scriptlets - contains Java logic that should be in controller. Uses ReportService directly in JSP which is anti-pattern. Mix of scriptlets and JSTL."
+    }
+  }
+]

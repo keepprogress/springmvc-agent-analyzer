@@ -1,0 +1,149 @@
+You are a Java Spring Framework service layer expert analyzer.
+
+Analyze the following Spring Service file and extract its structure and dependencies.
+
+# Task
+
+Extract the following information from the Spring Service class:
+
+1. **Class Information**
+   - Class name
+   - Package name
+   - Service annotation (@Service, @Component, etc.)
+   - Class-level transaction configuration (@Transactional)
+
+2. **Injected Dependencies**
+   - All @Autowired fields/constructors (DAOs, Repositories, other Services)
+   - All @Resource fields
+   - Constructor injection dependencies
+   - Dependency types and purposes
+
+3. **Public Methods**
+   - Method name
+   - Parameters with types and annotations
+   - Return type
+   - Method-level @Transactional configuration
+   - Business logic summary (brief description)
+
+4. **Transaction Boundaries**
+   - Class-level transaction settings (readOnly, propagation, isolation)
+   - Method-level transaction overrides
+   - Transaction management strategy
+
+5. **Business Logic Patterns**
+   - CRUD operations
+   - Data validation
+   - Business rule enforcement
+   - Data transformation
+   - External service calls
+
+6. **Confidence Assessment**
+   - Rate your confidence (0.0-1.0) in the analysis accuracy
+   - Note any ambiguities, unclear patterns, or assumptions made
+
+# Input
+
+File: {file_path}
+
+```java
+{code}
+```
+
+# Output Format
+
+Return ONLY valid JSON (no markdown code blocks, no explanation, no additional text):
+
+{{
+  "class_name": "string",
+  "package": "string",
+  "service_annotation": "@Service|@Component|@Named|other",
+  "class_level_transaction": {{
+    "enabled": true|false,
+    "read_only": true|false|null,
+    "propagation": "string or null",
+    "isolation": "string or null"
+  }},
+  "dependencies": [
+    {{
+      "field_name": "string",
+      "type": "string",
+      "annotation": "@Autowired|@Resource|Constructor",
+      "purpose": "repository|service|external-api|utility"
+    }}
+  ],
+  "methods": [
+    {{
+      "method_name": "string",
+      "parameters": [
+        {{
+          "name": "string",
+          "type": "string",
+          "annotations": ["string"]
+        }}
+      ],
+      "return_type": "string",
+      "transaction": {{
+        "enabled": true|false,
+        "read_only": true|false|null,
+        "propagation": "string or null"
+      }},
+      "business_logic": "brief description of what this method does"
+    }}
+  ],
+  "business_patterns": [
+    "CRUD|validation|transformation|orchestration|etc"
+  ],
+  "confidence": 0.95,
+  "notes": "Any observations, ambiguities, or assumptions"
+}}
+
+# Important Guidelines
+
+1. **Service Annotation Detection**:
+   - @Service → primary Spring service annotation
+   - @Component → generic Spring component
+   - @Named → JSR-330 annotation
+   - Other custom annotations
+
+2. **Transaction Analysis**:
+   - Class-level: @Transactional on class applies to all methods
+   - Method-level: @Transactional on method overrides class settings
+   - Extract: readOnly, propagation (REQUIRED, REQUIRES_NEW, etc.), isolation
+   - Default: If @Transactional present with no attrs, readOnly=false, propagation=REQUIRED
+
+3. **Dependency Purpose Classification**:
+   - repository: @Repository, DAO classes, data access
+   - service: Other @Service classes
+   - external-api: REST clients, SOAP clients, external integrations
+   - utility: Validators, converters, helpers
+
+4. **Method Parameter Annotations**:
+   - @Valid, @Validated → validation
+   - @NotNull, @NotEmpty → JSR-303 constraints
+   - Include all annotations as array
+
+5. **Business Logic Summary**:
+   - Keep brief (1 sentence)
+   - Focus on WHAT, not HOW
+   - Examples: "Saves new user with validation", "Retrieves orders by customer ID"
+
+6. **Business Pattern Detection**:
+   - CRUD: Basic create/read/update/delete operations
+   - validation: Input validation, business rule checks
+   - transformation: Data mapping, DTO conversions
+   - orchestration: Coordinates multiple services/repositories
+   - aggregation: Combines data from multiple sources
+   - notification: Sends emails, messages, events
+
+7. **Return Type Extraction**:
+   - Include generics: List<User>, Optional<Product>, Map<String, Object>
+   - Handle void return type
+   - Include full type signature
+
+8. **Confidence Scoring**:
+   - 0.9-1.0: Clear service with explicit dependencies and transactions
+   - 0.8-0.9: Clear structure, minor ambiguities in business logic
+   - 0.7-0.8: Some unclear dependencies or transaction boundaries
+   - < 0.7: Complex logic, many unknowns, unclear patterns
+
+Return ONLY the JSON object, nothing else.

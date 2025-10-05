@@ -49,6 +49,13 @@ agents:
   # Minimum confidence threshold for accepting results
   min_confidence: 0.7
 
+  # Max tokens per agent (scales with complexity)
+  max_tokens_controller: 2048    # Simple controllers
+  max_tokens_service: 2048        # Simple services
+  max_tokens_jsp: 3072            # Medium - mixed HTML/Java/EL
+  max_tokens_mapper: 3072         # Medium - XML + SQL
+  max_tokens_procedure: 4096      # Complex - PL/SQL logic
+
   # Adaptive context window
   adaptive_context:
     enabled: true

@@ -1,0 +1,155 @@
+You are a JavaServer Pages (JSP) and Spring MVC expert analyzer.
+
+Analyze the following JSP file and extract its structure and dependencies.
+
+# Task
+
+Extract the following information from the JSP file:
+
+1. **Page Directives**
+   - Imported Java classes (<%@ page import="..." %>)
+   - Content type, page encoding
+   - Error page configuration
+   - Session usage
+
+2. **Tag Library Declarations**
+   - All taglib directives (<%@ taglib ... %>)
+   - Prefix and URI mappings (JSTL, Spring Form, custom tags)
+
+3. **Model Attributes & Data Bindings**
+   - Variables accessed via EL expressions ${...}
+   - Model attributes used in the page
+   - Form model objects (commandName, modelAttribute)
+
+4. **Form Submissions**
+   - Form action URLs
+   - HTTP methods (GET/POST)
+   - Form fields and their bindings
+   - Submit buttons and handlers
+
+5. **Backend Dependencies**
+   - Controller endpoints called (form actions, AJAX URLs)
+   - Service layer hints from scriptlets
+   - Data passed to/from backend
+
+6. **Dynamic Content**
+   - JSTL loops and conditionals
+   - EL expressions for data display
+   - JavaScript/AJAX calls to backend
+
+7. **Confidence Assessment**
+   - Rate your confidence (0.0-1.0) in the analysis accuracy
+   - Note any ambiguities, unclear patterns, or assumptions made
+
+# Input
+
+File: {file_path}
+
+```jsp
+{code}
+```
+
+# Output Format
+
+Return ONLY valid JSON (no markdown code blocks, no explanation, no additional text):
+
+{{
+  "file_name": "string",
+  "page_directives": {{
+    "imports": ["string"],
+    "content_type": "string or null",
+    "page_encoding": "string or null",
+    "error_page": "string or null",
+    "session": "true|false"
+  }},
+  "tag_libraries": [
+    {{
+      "prefix": "string",
+      "uri": "string",
+      "type": "jstl|spring-form|spring-security|custom"
+    }}
+  ],
+  "model_attributes": [
+    {{
+      "name": "string",
+      "type": "inferred type or 'unknown'",
+      "usage": "display|form-binding|conditional|loop"
+    }}
+  ],
+  "forms": [
+    {{
+      "action": "string (URL)",
+      "method": "GET|POST|PUT|DELETE",
+      "model_attribute": "string or null",
+      "fields": [
+        {{
+          "name": "string",
+          "path": "string (for spring:bind/form:input)",
+          "type": "inferred type"
+        }}
+      ]
+    }}
+  ],
+  "backend_dependencies": [
+    {{
+      "type": "controller-endpoint|ajax-call|include",
+      "url": "string",
+      "method": "GET|POST|etc or null",
+      "purpose": "brief description"
+    }}
+  ],
+  "dynamic_content": {{
+    "jstl_loops": ["description of each <c:forEach> or similar"],
+    "conditionals": ["description of each <c:if>, <c:choose>"],
+    "ajax_calls": ["description of each AJAX request"]
+  }},
+  "confidence": 0.95,
+  "notes": "Any observations, ambiguities, or assumptions"
+}}
+
+# Important Guidelines
+
+1. **Import Extraction**: Extract all Java imports from page directives
+   - Example: <%@ page import="java.util.List, com.example.model.User" %>
+   - Separate into individual imports in the array
+
+2. **Tag Library Types**:
+   - jstl: http://java.sun.com/jsp/jstl/core, /fmt, /functions
+   - spring-form: http://www.springframework.org/tags/form
+   - spring-security: http://www.springframework.org/security/tags
+   - custom: Any other URI
+
+3. **Model Attribute Inference**:
+   - From ${user.name} → attribute name is "user", type might be "User" if context provides hints
+   - From form:form modelAttribute="product" → "product" is a model attribute
+   - List usage patterns: <c:forEach items="${users}" → "users" is likely List<User>
+
+4. **Form Analysis**:
+   - Extract action URL even if using EL: action="${pageContext.request.contextPath}/users/save"
+   - Identify all form fields with their path/name bindings
+   - Note if using Spring form tags vs plain HTML
+
+5. **Backend Dependencies**:
+   - Form submissions → controller endpoints
+   - <jsp:include> or <c:import> → other JSP/resources
+   - AJAX calls in <script> → controller endpoints
+   - Mark each with type and purpose
+
+6. **Confidence Scoring**:
+   - 0.9-1.0: Clear JSP with good structure, explicit imports, well-defined forms
+   - 0.8-0.9: Clear structure but some type inference needed
+   - 0.7-0.8: Ambiguous EL expressions, unclear model types
+   - < 0.7: Heavy scriptlets, complex logic, many unknowns
+
+7. **EL Expression Parsing**:
+   - ${user.name} → accessing "name" property of "user" object
+   - ${sessionScope.user} → accessing from session scope
+   - ${product.price * product.quantity} → computed expression
+   - Extract the base variable (user, product) as model attributes
+
+8. **Scriptlet Handling**:
+   - <% ... %> scriptlet code → extract any service/DAO calls if visible
+   - <%= ... %> expression → note what's being output
+   - Scriptlets are discouraged in modern Spring MVC but may appear in legacy code
+
+Return ONLY the JSON object, nothing else.

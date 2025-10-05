@@ -1,0 +1,249 @@
+[
+  {
+    "description": "Simple CRUD service with repository dependency",
+    "input": "package com.example.service;\n\nimport org.springframework.stereotype.Service;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.transaction.annotation.Transactional;\nimport com.example.repository.UserRepository;\nimport com.example.model.User;\nimport java.util.List;\nimport java.util.Optional;\n\n@Service\n@Transactional\npublic class UserService {\n\n    @Autowired\n    private UserRepository userRepository;\n\n    @Transactional(readOnly = true)\n    public List<User> findAll() {\n        return userRepository.findAll();\n    }\n\n    @Transactional(readOnly = true)\n    public Optional<User> findById(Long id) {\n        return userRepository.findById(id);\n    }\n\n    public User save(User user) {\n        return userRepository.save(user);\n    }\n\n    public void delete(Long id) {\n        userRepository.deleteById(id);\n    }\n}",
+    "output": {
+      "class_name": "UserService",
+      "package": "com.example.service",
+      "service_annotation": "@Service",
+      "class_level_transaction": {
+        "enabled": true,
+        "read_only": false,
+        "propagation": "REQUIRED",
+        "isolation": null
+      },
+      "dependencies": [
+        {
+          "field_name": "userRepository",
+          "type": "UserRepository",
+          "annotation": "@Autowired",
+          "purpose": "repository"
+        }
+      ],
+      "methods": [
+        {
+          "method_name": "findAll",
+          "parameters": [],
+          "return_type": "List<User>",
+          "transaction": {
+            "enabled": true,
+            "read_only": true,
+            "propagation": "REQUIRED"
+          },
+          "business_logic": "Retrieves all users from repository"
+        },
+        {
+          "method_name": "findById",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "Long",
+              "annotations": []
+            }
+          ],
+          "return_type": "Optional<User>",
+          "transaction": {
+            "enabled": true,
+            "read_only": true,
+            "propagation": "REQUIRED"
+          },
+          "business_logic": "Finds user by ID"
+        },
+        {
+          "method_name": "save",
+          "parameters": [
+            {
+              "name": "user",
+              "type": "User",
+              "annotations": []
+            }
+          ],
+          "return_type": "User",
+          "transaction": {
+            "enabled": true,
+            "read_only": false,
+            "propagation": "REQUIRED"
+          },
+          "business_logic": "Saves new or updates existing user"
+        },
+        {
+          "method_name": "delete",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "Long",
+              "annotations": []
+            }
+          ],
+          "return_type": "void",
+          "transaction": {
+            "enabled": true,
+            "read_only": false,
+            "propagation": "REQUIRED"
+          },
+          "business_logic": "Deletes user by ID"
+        }
+      ],
+      "business_patterns": [
+        "CRUD"
+      ],
+      "confidence": 0.98,
+      "notes": "Standard CRUD service with read-only transactions for queries"
+    }
+  },
+  {
+    "description": "Service with validation and multiple dependencies",
+    "input": "package com.example.service;\n\nimport org.springframework.stereotype.Service;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.transaction.annotation.Transactional;\nimport javax.validation.Valid;\nimport com.example.repository.OrderRepository;\nimport com.example.repository.ProductRepository;\nimport com.example.model.Order;\nimport com.example.dto.OrderRequest;\nimport com.example.validator.OrderValidator;\n\n@Service\npublic class OrderService {\n\n    private final OrderRepository orderRepository;\n    private final ProductRepository productRepository;\n    private final OrderValidator orderValidator;\n\n    @Autowired\n    public OrderService(OrderRepository orderRepository, \n                       ProductRepository productRepository,\n                       OrderValidator orderValidator) {\n        this.orderRepository = orderRepository;\n        this.productRepository = productRepository;\n        this.orderValidator = orderValidator;\n    }\n\n    @Transactional\n    public Order createOrder(@Valid OrderRequest request) {\n        orderValidator.validate(request);\n        \n        Order order = new Order();\n        order.setCustomerId(request.getCustomerId());\n        order.setItems(request.getItems());\n        \n        return orderRepository.save(order);\n    }\n\n    @Transactional(readOnly = true)\n    public List<Order> getOrdersByCustomer(Long customerId) {\n        return orderRepository.findByCustomerId(customerId);\n    }\n}",
+    "output": {
+      "class_name": "OrderService",
+      "package": "com.example.service",
+      "service_annotation": "@Service",
+      "class_level_transaction": {
+        "enabled": false,
+        "read_only": null,
+        "propagation": null,
+        "isolation": null
+      },
+      "dependencies": [
+        {
+          "field_name": "orderRepository",
+          "type": "OrderRepository",
+          "annotation": "Constructor",
+          "purpose": "repository"
+        },
+        {
+          "field_name": "productRepository",
+          "type": "ProductRepository",
+          "annotation": "Constructor",
+          "purpose": "repository"
+        },
+        {
+          "field_name": "orderValidator",
+          "type": "OrderValidator",
+          "annotation": "Constructor",
+          "purpose": "utility"
+        }
+      ],
+      "methods": [
+        {
+          "method_name": "createOrder",
+          "parameters": [
+            {
+              "name": "request",
+              "type": "OrderRequest",
+              "annotations": ["@Valid"]
+            }
+          ],
+          "return_type": "Order",
+          "transaction": {
+            "enabled": true,
+            "read_only": false,
+            "propagation": "REQUIRED"
+          },
+          "business_logic": "Creates new order with validation and saves to repository"
+        },
+        {
+          "method_name": "getOrdersByCustomer",
+          "parameters": [
+            {
+              "name": "customerId",
+              "type": "Long",
+              "annotations": []
+            }
+          ],
+          "return_type": "List<Order>",
+          "transaction": {
+            "enabled": true,
+            "read_only": true,
+            "propagation": "REQUIRED"
+          },
+          "business_logic": "Retrieves all orders for a specific customer"
+        }
+      ],
+      "business_patterns": [
+        "CRUD",
+        "validation"
+      ],
+      "confidence": 0.95,
+      "notes": "Constructor injection pattern, includes validation logic, method-level transactions"
+    }
+  },
+  {
+    "description": "Complex service orchestrating multiple services",
+    "input": "package com.example.service;\n\nimport org.springframework.stereotype.Service;\nimport org.springframework.transaction.annotation.Transactional;\nimport org.springframework.transaction.annotation.Propagation;\nimport javax.annotation.Resource;\nimport com.example.model.Report;\nimport com.example.dto.ReportRequest;\nimport java.util.List;\n\n@Service\n@Transactional(readOnly = true)\npublic class ReportService {\n\n    @Resource\n    private OrderService orderService;\n\n    @Resource\n    private ProductService productService;\n\n    @Resource\n    private EmailService emailService;\n\n    @Transactional(propagation = Propagation.REQUIRES_NEW)\n    public Report generateSalesReport(ReportRequest request) {\n        List<Order> orders = orderService.getOrdersByDateRange(\n            request.getStartDate(), \n            request.getEndDate()\n        );\n        \n        Report report = new Report();\n        report.setOrders(orders);\n        report.calculateTotals();\n        \n        emailService.sendReport(request.getRecipient(), report);\n        \n        return report;\n    }\n\n    public List<Product> getTopSellingProducts(int limit) {\n        return productService.getTopSelling(limit);\n    }\n}",
+    "output": {
+      "class_name": "ReportService",
+      "package": "com.example.service",
+      "service_annotation": "@Service",
+      "class_level_transaction": {
+        "enabled": true,
+        "read_only": true,
+        "propagation": "REQUIRED",
+        "isolation": null
+      },
+      "dependencies": [
+        {
+          "field_name": "orderService",
+          "type": "OrderService",
+          "annotation": "@Resource",
+          "purpose": "service"
+        },
+        {
+          "field_name": "productService",
+          "type": "ProductService",
+          "annotation": "@Resource",
+          "purpose": "service"
+        },
+        {
+          "field_name": "emailService",
+          "type": "EmailService",
+          "annotation": "@Resource",
+          "purpose": "service"
+        }
+      ],
+      "methods": [
+        {
+          "method_name": "generateSalesReport",
+          "parameters": [
+            {
+              "name": "request",
+              "type": "ReportRequest",
+              "annotations": []
+            }
+          ],
+          "return_type": "Report",
+          "transaction": {
+            "enabled": true,
+            "read_only": false,
+            "propagation": "REQUIRES_NEW"
+          },
+          "business_logic": "Generates sales report from orders and emails to recipient"
+        },
+        {
+          "method_name": "getTopSellingProducts",
+          "parameters": [
+            {
+              "name": "limit",
+              "type": "int",
+              "annotations": []
+            }
+          ],
+          "return_type": "List<Product>",
+          "transaction": {
+            "enabled": true,
+            "read_only": true,
+            "propagation": "REQUIRED"
+          },
+          "business_logic": "Retrieves top selling products up to specified limit"
+        }
+      ],
+      "business_patterns": [
+        "orchestration",
+        "aggregation",
+        "notification"
+      ],
+      "confidence": 0.92,
+      "notes": "Service orchestration pattern, uses REQUIRES_NEW propagation for report generation, combines multiple service calls"
+    }
+  }
+]

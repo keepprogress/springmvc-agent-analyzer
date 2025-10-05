@@ -1,0 +1,197 @@
+[
+  {
+    "description": "Simple MyBatis mapper with basic CRUD operations",
+    "input": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<!DOCTYPE mapper PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\" \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">\n<mapper namespace=\"com.example.dao.UserMapper\">\n\n    <select id=\"findById\" parameterType=\"long\" resultType=\"com.example.model.User\">\n        SELECT id, username, email, created_at\n        FROM users\n        WHERE id = #{id}\n    </select>\n\n    <select id=\"findAll\" resultType=\"com.example.model.User\">\n        SELECT id, username, email, created_at\n        FROM users\n        ORDER BY created_at DESC\n    </select>\n\n    <insert id=\"insert\" parameterType=\"com.example.model.User\">\n        INSERT INTO users (username, email, created_at)\n        VALUES (#{username}, #{email}, #{createdAt})\n    </insert>\n\n    <update id=\"update\" parameterType=\"com.example.model.User\">\n        UPDATE users\n        SET username = #{username}, email = #{email}\n        WHERE id = #{id}\n    </update>\n\n    <delete id=\"delete\" parameterType=\"long\">\n        DELETE FROM users WHERE id = #{id}\n    </delete>\n\n</mapper>",
+    "output": {
+      "file_name": "UserMapper.xml",
+      "namespace": "com.example.dao.UserMapper",
+      "statements": [
+        {
+          "id": "findById",
+          "type": "select",
+          "parameter_type": "long",
+          "result_type": "com.example.model.User",
+          "sql": "SELECT id, username, email, created_at FROM users WHERE id = #{id}",
+          "parameters": ["id"],
+          "tables": ["users"],
+          "dynamic_sql": {
+            "has_conditionals": false,
+            "has_loops": false,
+            "elements": []
+          },
+          "complexity": "simple"
+        },
+        {
+          "id": "findAll",
+          "type": "select",
+          "parameter_type": null,
+          "result_type": "com.example.model.User",
+          "sql": "SELECT id, username, email, created_at FROM users ORDER BY created_at DESC",
+          "parameters": [],
+          "tables": ["users"],
+          "dynamic_sql": {
+            "has_conditionals": false,
+            "has_loops": false,
+            "elements": []
+          },
+          "complexity": "simple"
+        },
+        {
+          "id": "insert",
+          "type": "insert",
+          "parameter_type": "com.example.model.User",
+          "result_type": null,
+          "sql": "INSERT INTO users (username, email, created_at) VALUES (#{username}, #{email}, #{createdAt})",
+          "parameters": ["username", "email", "createdAt"],
+          "tables": ["users"],
+          "dynamic_sql": {
+            "has_conditionals": false,
+            "has_loops": false,
+            "elements": []
+          },
+          "complexity": "simple"
+        },
+        {
+          "id": "update",
+          "type": "update",
+          "parameter_type": "com.example.model.User",
+          "result_type": null,
+          "sql": "UPDATE users SET username = #{username}, email = #{email} WHERE id = #{id}",
+          "parameters": ["username", "email", "id"],
+          "tables": ["users"],
+          "dynamic_sql": {
+            "has_conditionals": false,
+            "has_loops": false,
+            "elements": []
+          },
+          "complexity": "simple"
+        },
+        {
+          "id": "delete",
+          "type": "delete",
+          "parameter_type": "long",
+          "result_type": null,
+          "sql": "DELETE FROM users WHERE id = #{id}",
+          "parameters": ["id"],
+          "tables": ["users"],
+          "dynamic_sql": {
+            "has_conditionals": false,
+            "has_loops": false,
+            "elements": []
+          },
+          "complexity": "simple"
+        }
+      ],
+      "result_maps": [],
+      "tables_accessed": ["users"],
+      "confidence": 0.98,
+      "notes": "Standard CRUD mapper with clear parameter and result types"
+    }
+  },
+  {
+    "description": "Mapper with dynamic SQL and resultMap",
+    "input": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<!DOCTYPE mapper PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\" \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">\n<mapper namespace=\"com.example.dao.OrderMapper\">\n\n    <resultMap id=\"OrderResultMap\" type=\"com.example.model.Order\">\n        <id column=\"order_id\" property=\"id\"/>\n        <result column=\"customer_id\" property=\"customerId\"/>\n        <result column=\"order_date\" property=\"orderDate\"/>\n        <result column=\"total_amount\" property=\"totalAmount\"/>\n        <association property=\"customer\" javaType=\"com.example.model.Customer\">\n            <id column=\"cust_id\" property=\"id\"/>\n            <result column=\"cust_name\" property=\"name\"/>\n        </association>\n    </resultMap>\n\n    <select id=\"findByCustomerId\" parameterType=\"long\" resultMap=\"OrderResultMap\">\n        SELECT \n            o.id as order_id,\n            o.customer_id,\n            o.order_date,\n            o.total_amount,\n            c.id as cust_id,\n            c.name as cust_name\n        FROM orders o\n        JOIN customers c ON o.customer_id = c.id\n        WHERE o.customer_id = #{customerId}\n    </select>\n\n    <select id=\"search\" parameterType=\"map\" resultMap=\"OrderResultMap\">\n        SELECT \n            o.id as order_id,\n            o.customer_id,\n            o.order_date,\n            o.total_amount\n        FROM orders o\n        <where>\n            <if test=\"customerId != null\">\n                AND o.customer_id = #{customerId}\n            </if>\n            <if test=\"startDate != null\">\n                AND o.order_date >= #{startDate}\n            </if>\n            <if test=\"endDate != null\">\n                AND o.order_date <= #{endDate}\n            </if>\n        </where>\n        ORDER BY o.order_date DESC\n    </select>\n\n</mapper>",
+    "output": {
+      "file_name": "OrderMapper.xml",
+      "namespace": "com.example.dao.OrderMapper",
+      "statements": [
+        {
+          "id": "findByCustomerId",
+          "type": "select",
+          "parameter_type": "long",
+          "result_type": "OrderResultMap",
+          "sql": "SELECT o.id as order_id, o.customer_id, o.order_date, o.total_amount, c.id as cust_id, c.name as cust_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.customer_id = #{customerId}",
+          "parameters": ["customerId"],
+          "tables": ["orders", "customers"],
+          "dynamic_sql": {
+            "has_conditionals": false,
+            "has_loops": false,
+            "elements": []
+          },
+          "complexity": "medium"
+        },
+        {
+          "id": "search",
+          "type": "select",
+          "parameter_type": "map",
+          "result_type": "OrderResultMap",
+          "sql": "SELECT o.id as order_id, o.customer_id, o.order_date, o.total_amount FROM orders o WHERE [dynamic conditions] ORDER BY o.order_date DESC",
+          "parameters": ["customerId", "startDate", "endDate"],
+          "tables": ["orders"],
+          "dynamic_sql": {
+            "has_conditionals": true,
+            "has_loops": false,
+            "elements": ["where", "if"]
+          },
+          "complexity": "medium"
+        }
+      ],
+      "result_maps": [
+        {
+          "id": "OrderResultMap",
+          "type": "com.example.model.Order",
+          "mappings": [
+            {"column": "order_id", "property": "id", "jdbc_type": null},
+            {"column": "customer_id", "property": "customerId", "jdbc_type": null},
+            {"column": "order_date", "property": "orderDate", "jdbc_type": null},
+            {"column": "total_amount", "property": "totalAmount", "jdbc_type": null}
+          ],
+          "associations": [
+            {
+              "property": "customer",
+              "java_type": "com.example.model.Customer",
+              "select": null
+            }
+          ]
+        }
+      ],
+      "tables_accessed": ["orders", "customers"],
+      "confidence": 0.95,
+      "notes": "Uses resultMap with association, dynamic SQL with conditional where clauses"
+    }
+  },
+  {
+    "description": "Complex mapper with foreach and SQL injection risk",
+    "input": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<!DOCTYPE mapper PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\" \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">\n<mapper namespace=\"com.example.dao.ReportMapper\">\n\n    <select id=\"findByIds\" parameterType=\"map\" resultType=\"com.example.model.Report\">\n        SELECT * FROM ${tableName}\n        WHERE id IN\n        <foreach collection=\"ids\" item=\"id\" open=\"(\" separator=\",\" close=\")\">\n            #{id}\n        </foreach>\n        <if test=\"orderBy != null\">\n            ORDER BY ${orderBy}\n        </if>\n    </select>\n\n    <select id=\"getDynamicReport\" parameterType=\"map\" resultType=\"map\">\n        SELECT \n            ${columns}\n        FROM ${tableName}\n        <where>\n            <choose>\n                <when test=\"filter == 'active'\">\n                    status = 'ACTIVE'\n                </when>\n                <when test=\"filter == 'inactive'\">\n                    status = 'INACTIVE'\n                </when>\n                <otherwise>\n                    1=1\n                </otherwise>\n            </choose>\n        </where>\n    </select>\n\n</mapper>",
+    "output": {
+      "file_name": "ReportMapper.xml",
+      "namespace": "com.example.dao.ReportMapper",
+      "statements": [
+        {
+          "id": "findByIds",
+          "type": "select",
+          "parameter_type": "map",
+          "result_type": "com.example.model.Report",
+          "sql": "SELECT * FROM ${tableName} WHERE id IN (<foreach ids>) ORDER BY ${orderBy}",
+          "parameters": ["tableName", "ids", "orderBy"],
+          "tables": ["${tableName}"],
+          "dynamic_sql": {
+            "has_conditionals": true,
+            "has_loops": true,
+            "elements": ["foreach", "if"]
+          },
+          "complexity": "complex"
+        },
+        {
+          "id": "getDynamicReport",
+          "type": "select",
+          "parameter_type": "map",
+          "result_type": "map",
+          "sql": "SELECT ${columns} FROM ${tableName} WHERE [choose/when/otherwise conditions]",
+          "parameters": ["columns", "tableName", "filter"],
+          "tables": ["${tableName}"],
+          "dynamic_sql": {
+            "has_conditionals": true,
+            "has_loops": false,
+            "elements": ["where", "choose", "when", "otherwise"]
+          },
+          "complexity": "complex"
+        }
+      ],
+      "result_maps": [],
+      "tables_accessed": ["${tableName}"],
+      "confidence": 0.85,
+      "notes": "WARNING: Uses ${} direct substitution for tableName, columns, and orderBy - SQL INJECTION RISK. Dynamic table/column names should be validated. Uses foreach for IN clause and choose/when for conditional logic."
+    }
+  }
+]

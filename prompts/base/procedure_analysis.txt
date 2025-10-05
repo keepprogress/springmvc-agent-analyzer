@@ -1,0 +1,163 @@
+You are an Oracle PL/SQL stored procedure expert analyzer.
+
+Analyze the following Oracle stored procedure and extract its structure, parameters, and SQL operations.
+
+# Task
+
+Extract the following information from the stored procedure:
+
+1. **Procedure Information**
+   - Procedure name
+   - Package name (if part of a package)
+   - Description/purpose (from comments if available)
+
+2. **Parameters**
+   - Parameter name
+   - Data type
+   - Direction (IN, OUT, IN OUT)
+   - Default value (if any)
+   - Purpose/description
+
+3. **SQL Operations**
+   - Operation type (SELECT, INSERT, UPDATE, DELETE, MERGE)
+   - Tables/views accessed
+   - Key columns involved
+   - Business purpose of operation
+
+4. **Cursors and Result Sets**
+   - Cursor definitions
+   - Cursor parameters
+   - SELECT statements in cursors
+   - SYS_REFCURSOR outputs
+
+5. **Control Flow**
+   - Loops (FOR, WHILE, LOOP)
+   - Conditionals (IF-THEN-ELSE, CASE)
+   - Exception handlers
+   - Transaction control (COMMIT, ROLLBACK)
+
+6. **Business Logic Patterns**
+   - Data validation
+   - Calculations/aggregations
+   - Data transformation
+   - Batch processing
+   - Error handling strategy
+
+7. **Confidence Assessment**
+   - Rate your confidence (0.0-1.0) in the analysis accuracy
+   - Note any ambiguities, unclear patterns, or assumptions made
+
+# Input
+
+File: {file_path}
+
+```sql
+{code}
+```
+
+# Output Format
+
+Return ONLY valid JSON (no markdown code blocks, no explanation, no additional text):
+
+{{
+  "procedure_name": "string",
+  "package_name": "string or null",
+  "description": "string or null",
+  "parameters": [
+    {{
+      "name": "string",
+      "data_type": "string",
+      "direction": "IN|OUT|IN OUT",
+      "default_value": "string or null",
+      "description": "string"
+    }}
+  ],
+  "sql_operations": [
+    {{
+      "type": "SELECT|INSERT|UPDATE|DELETE|MERGE",
+      "tables": ["table1", "table2"],
+      "key_columns": ["col1", "col2"],
+      "purpose": "brief description"
+    }}
+  ],
+  "cursors": [
+    {{
+      "name": "string",
+      "parameters": ["param1", "param2"],
+      "select_statement": "SQL text",
+      "purpose": "brief description"
+    }}
+  ],
+  "control_flow": {{
+    "has_loops": true|false,
+    "has_conditionals": true|false,
+    "has_exception_handling": true|false,
+    "has_transaction_control": true|false,
+    "complexity": "simple|medium|complex"
+  }},
+  "business_patterns": [
+    "validation|calculation|transformation|batch-processing|error-handling"
+  ],
+  "tables_accessed": ["table1", "table2", "table3"],
+  "confidence": 0.95,
+  "notes": "Any observations, ambiguities, or assumptions"
+}}
+
+# Important Guidelines
+
+1. **Procedure Name Extraction**:
+   - CREATE OR REPLACE PROCEDURE proc_name → "proc_name"
+   - CREATE OR REPLACE PROCEDURE pkg.proc_name → package="pkg", name="proc_name"
+   - Extract from declaration
+
+2. **Parameter Analysis**:
+   - param_name IN VARCHAR2 → name="param_name", direction="IN", type="VARCHAR2"
+   - param_name OUT NUMBER → direction="OUT"
+   - param_name IN OUT DATE → direction="IN OUT"
+   - param_name VARCHAR2 DEFAULT 'value' → default_value="'value'"
+
+3. **SQL Operation Extraction**:
+   - Identify INSERT, UPDATE, DELETE, SELECT, MERGE statements
+   - Extract target tables and key columns (WHERE clause columns)
+   - Summarize purpose based on context
+
+4. **Cursor Detection**:
+   - CURSOR cur_name IS SELECT ... → extract cursor name and SQL
+   - FOR rec IN (SELECT ...) → implicit cursor
+   - SYS_REFCURSOR parameters → note as output result sets
+
+5. **Control Flow Analysis**:
+   - FOR...LOOP, WHILE...LOOP → has_loops = true
+   - IF...THEN, CASE...WHEN → has_conditionals = true
+   - EXCEPTION WHEN → has_exception_handling = true
+   - COMMIT, ROLLBACK → has_transaction_control = true
+
+6. **Business Pattern Detection**:
+   - validation: Checks with RAISE_APPLICATION_ERROR
+   - calculation: Mathematical operations, aggregations
+   - transformation: Data mapping, type conversions
+   - batch-processing: Bulk operations, FORALL, BULK COLLECT
+   - error-handling: Exception blocks, logging
+
+7. **Table Access Tracking**:
+   - Extract all unique table/view names from SQL
+   - Include both DML targets and query sources
+   - Note joins and subqueries
+
+8. **Complexity Assessment**:
+   - simple: Single operation, no loops/cursors, basic logic
+   - medium: Multiple operations, some cursors/loops, moderate logic
+   - complex: Many operations, nested cursors/loops, complex business logic
+
+9. **Comment Extraction**:
+   - -- single line comments
+   - /* multi-line comments */
+   - Extract procedure purpose from header comments
+
+10. **Confidence Scoring**:
+    - 0.9-1.0: Clear PL/SQL, well-structured, documented
+    - 0.8-0.9: Clear structure, some undocumented logic
+    - 0.7-0.8: Some unclear logic or dynamic SQL
+    - < 0.7: Complex dynamic SQL, unclear patterns, many unknowns
+
+Return ONLY the JSON object, nothing else.
