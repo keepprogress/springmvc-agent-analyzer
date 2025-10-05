@@ -1,7 +1,21 @@
 """
-Core infrastructure for Agent-based analysis.
+Core infrastructure components for SpringMVC Agent Analyzer.
 
-Includes model routing, prompt management, caching, and cost tracking.
+This package contains the fundamental building blocks that all agents depend on:
+- ModelRouter: Hierarchical LLM model selection
+- PromptManager: Template and example management
+- CacheManager: Semantic caching for analysis results
+- CostTracker: Real-time cost monitoring and budgeting
 """
 
-__all__ = []
+from core.model_router import ModelRouter
+from core.prompt_manager import PromptManager
+from core.cache_manager import CacheManager
+from core.cost_tracker import CostTracker
+
+__all__ = [
+    "ModelRouter",
+    "PromptManager",
+    "CacheManager",
+    "CostTracker",
+]

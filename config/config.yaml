@@ -6,20 +6,24 @@ llm:
   routing:
     # Fast screening model (cheapest)
     screening_model: "claude-3-5-haiku-20241022"
-    screening_cost_per_mtok: 0.25
+    screening_cost_per_mtok_input: 0.25
+    screening_cost_per_mtok_output: 1.25
 
     # Main analysis model (balanced)
     analysis_model: "claude-3-5-sonnet-20250929"
-    analysis_cost_per_mtok: 3.0
+    analysis_cost_per_mtok_input: 3.0
+    analysis_cost_per_mtok_output: 15.0
 
     # Critical decisions model (most capable)
     critical_model: "claude-3-opus-20240229"
-    critical_cost_per_mtok: 15.0
+    critical_cost_per_mtok_input: 15.0
+    critical_cost_per_mtok_output: 75.0
 
   # Confidence thresholds for model escalation
   thresholds:
     screening_confidence: 0.9  # If Haiku confidence >= 0.9, accept result
     analysis_confidence: 0.85  # If Sonnet confidence >= 0.85, accept result
+    minimum_escalation: 0.7     # Don't escalate if confidence >= this (cost saving)
     # Otherwise escalate to Opus
 
   # API Configuration
@@ -42,6 +46,9 @@ cost:
 
 # Agent Configuration
 agents:
+  # Minimum confidence threshold for accepting results
+  min_confidence: 0.7
+
   # Adaptive context window
   adaptive_context:
     enabled: true
