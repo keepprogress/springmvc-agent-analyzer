@@ -101,32 +101,64 @@ This project reimagines legacy code analysis by placing **LLM Agents at the cent
 
 ## 💡 Choose Your Mode
 
-This project supports **two operating modes** to fit your subscription:
+This project supports **three operating modes** to fit your subscription and use case:
 
 ### API Mode (With Anthropic API Subscription)
 ✅ Autonomous batch analysis
 ✅ Hierarchical model routing (Haiku → Sonnet → Opus)
 ✅ Cost optimization ($4.23 per project average)
 📋 **Requires**: `ANTHROPIC_API_KEY` environment variable
+📖 **Guide**: [MCP Integration Guide](./docs/MCP_INTEGRATION.md)
 
-### Passive Mode (With Claude Code Subscription Only) ⭐
+### Passive Mode (With Claude Code Subscription Only)
 ✅ No API key needed!
 ✅ Uses your existing Claude Code subscription
 ✅ No additional API costs
 ✅ Interactive analysis with full graph capabilities
 📋 **Setup**: Set `server.mode: "passive"` in `config/config.yaml`
+📖 **Guide**: [Passive Mode Guide](./docs/PASSIVE_MODE_GUIDE.md)
 
-**👉 If you only have Claude Code subscription and no API key, see [Passive Mode Guide](./docs/PASSIVE_MODE_GUIDE.md)**
+### SDK Agent Mode (With Claude Code Subscription Only) ⭐ NEW!
+✅ No API key needed!
+✅ **Bidirectional dialogue** with autonomous agent
+✅ **Self-directed analysis** - Agent decides strategy
+✅ **Hooks system** - Validation, caching, context management
+✅ **Dynamic control** - Runtime model/permission adjustment
+✅ **Fine-grained permissions** - Control tool usage
+📋 **Setup**: `pip install claude-agent-sdk>=0.1.0`
+📖 **Guide**: [SDK Agent Guide](./docs/SDK_AGENT_GUIDE.md)
+🔄 **Migration**: [Migration to SDK Agent](./docs/MIGRATION_TO_SDK.md)
+
+**👉 Comparison:**
+
+| Feature | API Mode | Passive Mode | **SDK Agent Mode** |
+|---------|----------|--------------|-------------------|
+| **API Key Required** | ✅ Yes | ❌ No | ❌ No |
+| **Subscription** | Anthropic API | Claude Code | Claude Code |
+| **Interaction** | MCP Tools | MCP Tools + Manual | **Bidirectional Dialogue** |
+| **Autonomy** | Batch Auto | User-driven | **Agent Self-directed** |
+| **Cost** | ~$4.23/project | $0 | **$0** |
+| **Hooks Support** | ❌ | ❌ | **✅ Full** |
+| **Best For** | Batch processing | Exploration | **Interactive analysis** |
+
+**Choose SDK Agent Mode if you:**
+- Have Claude Code subscription (no API key)
+- Want interactive, conversational code analysis
+- Need agent autonomy and self-directed analysis
+- Want validation, caching, and context management hooks
+- Need runtime control over models and permissions
 
 ---
 
-## 🚀 Quick Start (API Mode)
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.10+
-- Anthropic API Key (for API mode) OR Claude Code subscription (for Passive mode)
-- Oracle Database (optional, for DB extraction)
+- Choose your mode:
+  - **API Mode**: Anthropic API Key
+  - **Passive Mode**: Claude Code subscription
+  - **SDK Agent Mode**: Claude Code subscription + Claude Agent SDK
 
 ### Installation
 
@@ -213,6 +245,61 @@ print(result)
 #   "cost": 0.00012
 # }
 ```
+
+#### SDK Agent Mode (NEW!) ⭐
+
+**Interactive dialogue with autonomous agent:**
+
+```bash
+# 1. Install SDK
+pip install claude-agent-sdk>=0.1.0
+
+# 2. Start interactive mode
+python run_sdk_agent.py --interactive
+
+# 3. Natural conversation
+> 請分析 src/main/java/com/example/controller/UserController.java
+> 這個 Controller 依賴哪些 Service？
+> 如果修改 UserService，會影響哪些組件？
+> 生成依賴關係圖
+
+# The agent autonomously:
+# - Chooses appropriate tools
+# - Analyzes dependencies
+# - Builds knowledge graph
+# - Provides insights and recommendations
+```
+
+**Or use as programmatic API:**
+
+```python
+from sdk_agent.client import SpringMVCAnalyzerAgent
+
+# Initialize agent
+agent = SpringMVCAnalyzerAgent(
+    config_path="config/sdk_agent_config.yaml",
+    hooks_enabled=True,
+    permission_mode="acceptEdits"
+)
+
+# Batch analysis
+result = await agent.analyze_project(
+    project_path="src/main/java",
+    output_format="markdown"
+)
+
+print(f"Analyzed {result['total_files']} files")
+print(f"Found {result['total_endpoints']} endpoints")
+```
+
+**Key Features:**
+- 🤖 **Autonomous**: Agent decides analysis strategy
+- 💬 **Interactive**: Natural language dialogue
+- 🔧 **Hooks**: Validation, caching, context management
+- ⚡ **Dynamic**: Runtime model/permission control
+- 🆓 **Zero cost**: Uses Claude Code subscription
+
+See [SDK Agent Guide](docs/SDK_AGENT_GUIDE.md) for detailed usage.
 
 ---
 

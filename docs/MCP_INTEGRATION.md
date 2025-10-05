@@ -4,25 +4,46 @@
 
 The SpringMVC Agent Analyzer provides a Model Context Protocol (MCP) server for integration with Claude Code and other MCP clients. This enables interactive code analysis directly within your development environment.
 
-## Two Operating Modes
+## Three Operating Modes
 
-The MCP server supports two modes:
+The project supports three distinct operating modes:
 
-### 🔧 API Mode (Default)
+### 🔧 API Mode (MCP Server with API)
 - **For users with**: Anthropic API subscription
 - **Requires**: `ANTHROPIC_API_KEY` environment variable
 - **How it works**: MCP server calls Anthropic API directly for analysis
 - **Best for**: Autonomous batch processing, cost optimization via model routing
+- **Interface**: MCP Tools in Claude Code
 
-### 🚀 Passive Mode (For Claude Code Subscription Users)
+### 🚀 Passive Mode (MCP Server without API)
 - **For users with**: Claude Code subscription (no API key)
 - **Requires**: No API key needed!
 - **How it works**: Claude Code performs analysis, MCP server manages graph
 - **Best for**: Interactive analysis, using existing Claude Code subscription
+- **Interface**: MCP Tools in Claude Code
+
+### ⭐ SDK Agent Mode (NEW!)
+- **For users with**: Claude Code subscription (no API key)
+- **Requires**: `pip install claude-agent-sdk>=0.1.0`
+- **How it works**: Bidirectional dialogue with autonomous agent
+- **Best for**: Interactive, conversational analysis with agent autonomy
+- **Interface**: Direct dialogue with SpringMVCAnalyzerAgent
+
+**Mode Comparison:**
+
+| Feature | API Mode | Passive Mode | SDK Agent Mode |
+|---------|----------|--------------|----------------|
+| **API Key Required** | ✅ Yes | ❌ No | ❌ No |
+| **Subscription** | Anthropic API | Claude Code | Claude Code |
+| **Interface** | MCP Tools | MCP Tools | Direct Dialogue |
+| **Analysis** | Autonomous | Manual | Autonomous + Interactive |
+| **Hooks Support** | ❌ | ❌ | ✅ Full |
+| **Cost** | ~$4.23/project | $0 | $0 |
 
 **Choose your mode:**
-- If you have API subscription → Use API mode (this guide)
-- If you only have Claude Code subscription → See [Passive Mode Guide](./PASSIVE_MODE_GUIDE.md)
+- API subscription + Batch processing → API Mode (this guide)
+- Claude Code subscription + Exploration → Passive Mode ([Guide](./PASSIVE_MODE_GUIDE.md))
+- Claude Code subscription + Interactive analysis → SDK Agent Mode ([Guide](./SDK_AGENT_GUIDE.md))
 
 ---
 

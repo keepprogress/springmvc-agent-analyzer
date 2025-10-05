@@ -49,7 +49,46 @@ By centering LLMs, we gain:
 
 ## System Architecture
 
-### High-Level Architecture
+### Three Operating Modes
+
+SpringMVC Agent Analyzer supports **three operating modes** to accommodate different subscriptions and use cases:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Operating Modes Overview                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐      │
+│  │  API Mode    │  │ Passive Mode │  │ SDK Agent Mode ⭐    │      │
+│  │              │  │              │  │                      │      │
+│  │ MCP Server   │  │ MCP Server   │  │ ClaudeSDKClient      │      │
+│  │ + API calls  │  │ + Manual     │  │ + @tool decorators   │      │
+│  │              │  │   analysis   │  │                      │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────────────┘      │
+│         │                 │                 │                       │
+│         └─────────────────┴─────────────────┘                       │
+│                           │                                         │
+│         ┌─────────────────▼─────────────────┐                       │
+│         │     Shared Component Layer        │                       │
+│         │  Agents, GraphBuilder, Prompts    │                       │
+│         └───────────────────────────────────┘                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Mode Comparison:**
+
+| Aspect | API Mode | Passive Mode | SDK Agent Mode |
+|--------|----------|--------------|----------------|
+| **Interface** | MCP Server | MCP Server | SDK Client |
+| **API Key** | Required | Not Required | Not Required |
+| **Subscription** | Anthropic API | Claude Code | Claude Code |
+| **Analysis** | Autonomous | Manual | Autonomous + Interactive |
+| **Interaction** | Tool calls | Tool calls + Manual | Bidirectional dialogue |
+| **Hooks** | ❌ | ❌ | ✅ Full support |
+| **Cost** | ~$4.23/project | $0 | $0 |
+| **Best For** | Batch processing | Exploration | Interactive analysis |
+
+### API Mode Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -102,6 +141,100 @@ By centering LLMs, we gain:
 │                                                            │
 │  Query Engine: Chains, Impact, Dependencies, Orphans      │
 └───────────────────────────────────────────────────────────┘
+```
+
+### SDK Agent Mode Architecture ⭐
+
+**New in v0.2.0**: Interactive dialogue-driven analysis using Claude Agent SDK
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      User (Natural Language)                     │
+│              "分析 UserController 並找出依賴關係"                  │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  SpringMVCAnalyzerAgent                          │
+│                   (ClaudeSDKClient)                              │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Autonomous Decision Making                               │  │
+│  │  • Understands user intent                                │  │
+│  │  • Chooses appropriate tools                              │  │
+│  │  • Manages conversation context                           │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+        ┌───────────────────┴───────────────────┐
+        │                                       │
+        ▼                                       ▼
+┌───────────────────┐                  ┌────────────────────┐
+│   Hooks System    │                  │  @tool Decorators  │
+│                   │                  │                    │
+│ • PreToolUse      │                  │ • analyze_*        │
+│ • PostToolUse     │                  │ • build_graph      │
+│ • PreCompact      │                  │ • query_graph      │
+│ • UserPromptSubmit│                  │ • find_dependencies│
+│ • Stop            │                  │ • export_graph     │
+└─────────┬─────────┘                  └─────────┬──────────┘
+          │                                      │
+          │   ┌──────────────────────────────────┘
+          │   │
+          ▼   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  Shared Component Layer                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  Agents      │  │ GraphBuilder │  │PromptManager │          │
+│  │              │  │              │  │              │          │
+│  │ • Controller │  │ • Build      │  │ • Templates  │          │
+│  │ • Service    │  │ • Query      │  │ • Examples   │          │
+│  │ • Mapper     │  │ • Export     │  │ • Learning   │          │
+│  │ • JSP        │  │              │  │              │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Differences from API/Passive Modes:**
+
+1. **Bidirectional Dialogue**: Agent can ask clarifying questions
+2. **Autonomous Tool Selection**: Agent chooses which tools to use
+3. **Hooks System**:
+   - **PreToolUse**: Validate inputs, check confidence, auto-upgrade models
+   - **PostToolUse**: Cache results, cleanup temporary data
+   - **PreCompact**: Smart context compression for long conversations
+   - **UserPromptSubmit**: Expand paths, add context
+   - **Stop**: Session cleanup, save summaries
+4. **Dynamic Control**: Runtime adjustment of models and permissions
+5. **Permission Management**: Fine-grained control over tool usage
+
+**Data Flow Example:**
+
+```
+User: "分析 UserController 並顯示依賴"
+  │
+  ▼
+[UserPromptSubmitHook] → Expand path, add context
+  │
+  ▼
+Agent: Decides to use analyze_controller
+  │
+  ▼
+[PreToolUseHook] → Validate, check confidence
+  │
+  ▼
+analyze_controller(@tool) → Calls ControllerAgent
+  │
+  ▼
+[PostToolUseHook] → Cache result
+  │
+  ▼
+Agent: Decides to use find_dependencies
+  │
+  ▼
+find_dependencies(@tool) → Calls GraphBuilder
+  │
+  ▼
+Agent: Returns formatted response to user
 ```
 
 ---
