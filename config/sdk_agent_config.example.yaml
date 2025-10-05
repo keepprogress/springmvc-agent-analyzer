@@ -1,0 +1,82 @@
+# SDK Agent Mode Configuration Example
+# Copy this file to sdk_agent_config.yaml and customize
+
+server:
+  mode: "sdk_agent"  # Operating mode: api, passive, or sdk_agent
+
+models:
+  # Claude Code models (no API key required for sdk_agent mode)
+  default: "claude-sonnet-4-5"
+  haiku: "claude-3-5-haiku-20241022"
+  sonnet: "claude-3-5-sonnet-20241022"
+  opus: "claude-opus-4-20250514"
+
+agents:
+  min_confidence: 0.7
+  structure_validation_penalty: 0.6
+
+sdk_agent:
+  max_turns: 20
+  permission_mode: "acceptEdits"  # acceptAll, acceptEdits, rejectAll, custom
+  hooks_enabled: true
+
+  hooks:
+    validation:
+      enabled: true
+      min_confidence: 0.7
+      auto_upgrade: true
+
+    cache:
+      enabled: true
+      similarity_threshold: 0.85
+      vector_store: "faiss"
+
+    context_manager:
+      enabled: true
+      compact_threshold: 50
+      keep_recent: 10
+      keep_important: true
+
+    input_enhancement:
+      enabled: true
+      expand_paths: true
+      add_context: true
+
+    cleanup:
+      enabled: true
+      save_session: true
+      session_dir: "sessions"
+
+  prompts:
+    system_prompt_path: "prompts/sdk_agent/system_prompt.md"
+    include_examples: true
+
+  permissions:
+    # Customize tool permissions
+    analyze_controller: "allow"
+    analyze_service: "allow"
+    analyze_mapper: "allow"
+    analyze_jsp: "allow"
+    analyze_procedure: "allow"
+    build_graph: "confirm"
+    query_graph: "allow"
+    find_dependencies: "allow"
+    analyze_impact: "allow"
+    export_graph: "confirm"
+    list_files: "allow"
+    read_file: "allow"
+
+graph:
+  auto_build: true
+  export_format: "d3"
+  enable_cache: true
+
+cache:
+  cache_dir: ".cache"
+  max_size_mb: 1000
+  ttl_seconds: 86400
+
+logging:
+  level: "INFO"
+  file: "logs/sdk_agent.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

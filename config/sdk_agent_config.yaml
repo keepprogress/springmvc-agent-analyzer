@@ -1,0 +1,94 @@
+# SDK Agent Mode Configuration
+# SpringMVC Agent Analyzer - Interactive Dialogue Mode
+
+server:
+  mode: "sdk_agent"
+
+models:
+  # Claude Code models (no API key required)
+  default: "claude-sonnet-4-5"
+  haiku: "claude-3-5-haiku-20241022"
+  sonnet: "claude-3-5-sonnet-20241022"
+  opus: "claude-opus-4-20250514"
+
+agents:
+  # Agent configuration
+  min_confidence: 0.7
+  structure_validation_penalty: 0.6
+
+sdk_agent:
+  # SDK Agent specific configuration
+  max_turns: 20                    # Maximum conversation turns
+  permission_mode: "acceptEdits"   # acceptAll, acceptEdits, rejectAll, custom
+  hooks_enabled: true              # Enable hooks system
+
+  hooks:
+    # Validation Hook (PreToolUse)
+    validation:
+      enabled: true
+      min_confidence: 0.7          # Auto-upgrade model if below this
+      auto_upgrade: true
+
+    # Cache Hook (PostToolUse)
+    cache:
+      enabled: true
+      similarity_threshold: 0.85   # Semantic cache similarity
+      vector_store: "faiss"
+
+    # Context Manager Hook (PreCompact)
+    context_manager:
+      enabled: true
+      compact_threshold: 50        # Compact after N turns
+      keep_recent: 10              # Keep N recent messages
+      keep_important: true         # Keep messages with high importance
+
+    # Input Enhancement Hook (UserPromptSubmit)
+    input_enhancement:
+      enabled: true
+      expand_paths: true           # Expand relative paths
+      add_context: true            # Add file context
+
+    # Cleanup Hook (Stop)
+    cleanup:
+      enabled: true
+      save_session: true           # Save session on stop
+      session_dir: "sessions"
+
+  prompts:
+    # System prompt configuration
+    system_prompt_path: "prompts/sdk_agent/system_prompt.md"
+    include_examples: true         # Include few-shot examples
+
+  permissions:
+    # Fine-grained permission control
+    # Options: allow, confirm, deny
+    analyze_controller: "allow"
+    analyze_service: "allow"
+    analyze_mapper: "allow"
+    analyze_jsp: "allow"
+    analyze_procedure: "allow"
+    build_graph: "confirm"         # Ask before building
+    query_graph: "allow"
+    find_dependencies: "allow"
+    analyze_impact: "allow"
+    export_graph: "confirm"        # Ask before exporting
+    list_files: "allow"
+    read_file: "allow"
+
+graph:
+  # Knowledge graph configuration
+  auto_build: true                 # Auto-build after analysis
+  export_format: "d3"              # Default export format
+  enable_cache: true
+
+cache:
+  # Cache configuration
+  cache_dir: ".cache"
+  max_size_mb: 1000
+  ttl_seconds: 86400               # 24 hours
+
+logging:
+  # Logging configuration
+  level: "INFO"
+  file: "logs/sdk_agent.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
