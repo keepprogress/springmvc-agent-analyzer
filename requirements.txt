@@ -1,0 +1,26 @@
+# Core dependencies
+anthropic>=0.39.0
+networkx>=3.4
+pyyaml>=6.0
+
+# Database
+oracledb>=2.0.0
+
+# Validation (lightweight)
+javalang>=0.13.0
+lxml>=5.0.0
+sqlparse>=0.5.0
+
+# MCP Protocol
+mcp>=1.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+tenacity>=9.0.0  # Retry logic
+
+# Development
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+black>=24.0.0
+ruff>=0.7.0

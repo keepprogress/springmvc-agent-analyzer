@@ -1,0 +1,30 @@
+# Oracle Database Configuration (Example)
+# Copy this file to oracle_config.yaml and fill in your credentials
+
+databases:
+  dev:
+    host: "localhost"
+    port: 1521
+    service_name: "ORCL"
+    user: "your_username"
+    # Password should be set via environment variable: ORACLE_DEV_PASSWORD
+
+  test:
+    host: "test-db.example.com"
+    port: 1521
+    service_name: "TESTDB"
+    user: "your_username"
+    # Password: ORACLE_TEST_PASSWORD
+
+  prod:
+    host: "prod-db.example.com"
+    port: 1521
+    service_name: "PRODDB"
+    user: "readonly_user"
+    # Password: ORACLE_PROD_PASSWORD
+
+# Schema extraction settings
+extraction:
+  include_source_code: true
+  include_dependencies: true
+  max_procedures: 1000

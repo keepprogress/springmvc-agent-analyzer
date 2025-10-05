@@ -1,0 +1,65 @@
+# SpringMVC Agent Analyzer Configuration
+
+# LLM Model Configuration
+llm:
+  # Model routing strategy
+  routing:
+    # Fast screening model (cheapest)
+    screening_model: "claude-3-5-haiku-20241022"
+    screening_cost_per_mtok: 0.25
+
+    # Main analysis model (balanced)
+    analysis_model: "claude-3-5-sonnet-20250929"
+    analysis_cost_per_mtok: 3.0
+
+    # Critical decisions model (most capable)
+    critical_model: "claude-3-opus-20240229"
+    critical_cost_per_mtok: 15.0
+
+  # Confidence thresholds for model escalation
+  thresholds:
+    screening_confidence: 0.9  # If Haiku confidence >= 0.9, accept result
+    analysis_confidence: 0.85  # If Sonnet confidence >= 0.85, accept result
+    # Otherwise escalate to Opus
+
+  # API Configuration
+  api:
+    max_tokens: 4096
+    temperature: 0.1
+    timeout: 60
+
+# Semantic Cache Configuration
+cache:
+  enabled: true
+  similarity_threshold: 0.85  # Cache hit if similarity >= 0.85
+  max_cache_size: 10000
+  ttl_days: 30
+
+# Cost Tracking
+cost:
+  budget_per_project: 5.0  # USD
+  alert_threshold: 0.8  # Alert at 80% budget
+
+# Agent Configuration
+agents:
+  # Adaptive context window
+  adaptive_context:
+    enabled: true
+    min_lines: 5
+    max_lines: 50
+    # Let LLM decide context size
+
+  # Batch processing
+  batch_size: 10
+  max_workers: 4
+
+# Graph Configuration
+graph:
+  max_depth: 10
+  max_paths: 100
+
+# Output
+output:
+  base_dir: "output"
+  format: "json"
+  save_intermediate: true
