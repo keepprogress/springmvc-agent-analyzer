@@ -271,6 +271,21 @@ class BaseAgent(ABC):
         """
         path = Path(file_path).resolve()
 
+        # Security: Validate path to prevent path traversal attacks
+        # Check for suspicious patterns
+        if ".." in str(file_path):
+            self.logger.warning(f"Potentially unsafe path with '..' detected: {file_path}")
+            # Still allow if resolved path is safe (not trying to escape working directory)
+            try:
+                cwd = Path.cwd().resolve()
+                # Check if resolved path is within or relative to cwd
+                path.relative_to(cwd)
+            except ValueError:
+                # Path is outside working directory
+                raise ValueError(
+                    f"Path traversal detected: {file_path} resolves outside working directory"
+                )
+
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 

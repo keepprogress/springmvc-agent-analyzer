@@ -122,10 +122,27 @@ class PromptManager:
             example_name = file_path.stem
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    examples[example_name] = json.load(f)
-                self.logger.debug(
-                    f"Loaded {len(examples[example_name])} examples for {example_name}"
-                )
+                    loaded_examples = json.load(f)
+
+                # Validate example structure
+                if not isinstance(loaded_examples, list):
+                    self.logger.error(f"Examples in {example_name} must be a list, got {type(loaded_examples)}")
+                    continue
+
+                # Validate each example
+                valid_examples = []
+                for idx, example in enumerate(loaded_examples):
+                    if self._validate_example(example, example_name, idx):
+                        valid_examples.append(example)
+
+                if valid_examples:
+                    examples[example_name] = valid_examples
+                    self.logger.debug(
+                        f"Loaded {len(valid_examples)} valid examples for {example_name}"
+                    )
+                else:
+                    self.logger.warning(f"No valid examples found in {example_name}")
+
             except Exception as e:
                 self.logger.error(f"Failed to load examples {example_name}: {e}")
 
@@ -134,6 +151,48 @@ class PromptManager:
             f"({sum(len(ex) for ex in examples.values())} total examples)"
         )
         return examples
+
+    def _validate_example(
+        self,
+        example: Any,
+        example_name: str,
+        index: int
+    ) -> bool:
+        """
+        Validate example structure.
+
+        Args:
+            example: Example dictionary to validate
+            example_name: Name of example set (for logging)
+            index: Index in example list (for logging)
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if not isinstance(example, dict):
+            self.logger.warning(
+                f"Example #{index} in {example_name} must be a dict, got {type(example)}"
+            )
+            return False
+
+        # Required keys for examples
+        required_keys = ["description", "input", "output"]
+
+        for key in required_keys:
+            if key not in example:
+                self.logger.warning(
+                    f"Example #{index} in {example_name} missing required key: {key}"
+                )
+                return False
+
+        # Validate output is dict or appropriate type
+        if not isinstance(example["output"], (dict, list, str)):
+            self.logger.warning(
+                f"Example #{index} in {example_name} has invalid output type: {type(example['output'])}"
+            )
+            return False
+
+        return True
 
     def build_prompt(
         self,

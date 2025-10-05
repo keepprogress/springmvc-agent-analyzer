@@ -157,8 +157,9 @@ class ProcedureAgent(BaseAgent):
         if not self._validate_analysis_structure(analysis):
             self.logger.warning(f"Analysis structure validation failed for {file_path}")
             # Lower confidence if structure invalid
+            penalty = self.config.get("agents", {}).get("structure_validation_penalty", 0.6)
             if "confidence" in analysis:
-                analysis["confidence"] = min(analysis["confidence"], 0.6)
+                analysis["confidence"] = min(analysis["confidence"], penalty)
 
         # Extract confidence from analysis (LLM provides this)
         confidence = analysis.get("confidence", 0.5)

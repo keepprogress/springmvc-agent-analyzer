@@ -86,7 +86,15 @@ class CacheManager:
         Returns:
             Cached result dictionary or None if cache miss
         """
-        cache_key = self._compute_cache_key(agent_name, file_path, file_content)
+        # Get file modification time for cache key
+        file_mtime = 0.0
+        try:
+            file_mtime = Path(file_path).stat().st_mtime
+        except Exception:
+            # If file doesn't exist or can't get mtime, use 0.0
+            pass
+
+        cache_key = self._compute_cache_key(agent_name, file_path, file_content, file_mtime)
         cache_file = self.cache_dir / f"{cache_key}.pkl"
 
         # Check if cache file exists
@@ -145,7 +153,15 @@ class CacheManager:
         # Check cache size and evict if needed
         self._enforce_cache_size_limit()
 
-        cache_key = self._compute_cache_key(agent_name, file_path, file_content)
+        # Get file modification time for cache key
+        file_mtime = 0.0
+        try:
+            file_mtime = Path(file_path).stat().st_mtime
+        except Exception:
+            # If file doesn't exist or can't get mtime, use 0.0
+            pass
+
+        cache_key = self._compute_cache_key(agent_name, file_path, file_content, file_mtime)
         cache_file = self.cache_dir / f"{cache_key}.pkl"
 
         try:
@@ -162,10 +178,13 @@ class CacheManager:
         self,
         agent_name: str,
         file_path: str,
-        file_content: str
+        file_content: str,
+        file_mtime: float = 0.0
     ) -> str:
         """
-        Compute cache key from agent + file + content hash.
+        Compute cache key from agent + file + content hash + modification time.
+
+        Including mtime ensures cache invalidation when file is modified.
 
         Future enhancement: Use semantic embeddings instead of raw content hash
         for true semantic similarity matching.
@@ -174,6 +193,7 @@ class CacheManager:
             agent_name: Name of the agent
             file_path: Path to the file
             file_content: File content
+            file_mtime: File modification time (Unix timestamp)
 
         Returns:
             Cache key (16-char hex string)
@@ -181,8 +201,9 @@ class CacheManager:
         # Hash the file content
         content_hash = hashlib.sha256(file_content.encode('utf-8')).hexdigest()
 
-        # Combine agent name, file path, and content hash
-        combined = f"{agent_name}:{file_path}:{content_hash}"
+        # Combine agent name, file path, content hash, and mtime
+        # mtime ensures cache invalidates when file is modified
+        combined = f"{agent_name}:{file_path}:{content_hash}:{file_mtime}"
 
         # Hash the combined string
         cache_key = hashlib.sha256(combined.encode('utf-8')).hexdigest()

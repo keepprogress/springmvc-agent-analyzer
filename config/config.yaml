@@ -49,6 +49,9 @@ agents:
   # Minimum confidence threshold for accepting results
   min_confidence: 0.7
 
+  # Confidence penalties
+  structure_validation_penalty: 0.6  # Max confidence if structure validation fails
+
   # Max tokens per agent (scales with complexity)
   max_tokens_controller: 2048    # Simple controllers
   max_tokens_service: 2048        # Simple services

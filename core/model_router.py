@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from anthropic import AsyncAnthropic
 import anthropic
+import httpx
 
 
 class ModelRouter:
@@ -65,7 +66,9 @@ class ModelRouter:
                 "Please set it in .env or export ANTHROPIC_API_KEY=your_key"
             )
 
-        self.client = AsyncAnthropic(api_key=api_key)
+        # Configure timeout: 60s for read operations, 10s for connect
+        timeout = httpx.Timeout(60.0, connect=10.0)
+        self.client = AsyncAnthropic(api_key=api_key, timeout=timeout)
         self.logger = logging.getLogger("core.model_router")
 
         # Model definitions with costs

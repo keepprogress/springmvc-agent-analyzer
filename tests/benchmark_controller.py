@@ -305,6 +305,20 @@ async def run_benchmark():
     )
     logger = logging.getLogger("benchmark")
 
+    # Early validation: Check API key is set
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        logger.error("=" * 60)
+        logger.error("ANTHROPIC_API_KEY environment variable not set!")
+        logger.error("=" * 60)
+        logger.error("")
+        logger.error("Please set your API key before running benchmark:")
+        logger.error("  export ANTHROPIC_API_KEY=your_key_here")
+        logger.error("")
+        logger.error("Or create a .env file in project root:")
+        logger.error("  ANTHROPIC_API_KEY=your_key_here")
+        logger.error("")
+        sys.exit(1)
+
     # Load config
     config = load_config()
 
@@ -358,10 +372,29 @@ async def run_benchmark():
 
     logger.info(f"Found {len(test_files)} test fixtures")
 
+    # Checkpoint/resume capability - save progress after each file
+    checkpoint_file = project_root / "output" / "benchmark_checkpoint.json"
+    completed_files = set()
+
+    if checkpoint_file.exists():
+        try:
+            with open(checkpoint_file, 'r', encoding='utf-8') as f:
+                checkpoint_data = json.load(f)
+                completed_files = set(checkpoint_data.get("completed", []))
+                logger.info(f"Resuming from checkpoint: {len(completed_files)} files already completed")
+        except Exception as e:
+            logger.warning(f"Failed to load checkpoint: {e}, starting fresh")
+            completed_files = set()
+
     # Run analysis on each fixture
     for test_file in test_files:
         file_name = test_file.stem
         gold_file = gold_dir / f"{file_name}.json"
+
+        # Skip if already completed (resume capability)
+        if file_name in completed_files:
+            logger.info(f"Skipping {file_name} (already completed)")
+            continue
 
         if not gold_file.exists():
             logger.warning(f"No gold standard for {file_name}, skipping")
@@ -409,6 +442,12 @@ async def run_benchmark():
 
             logger.info(f"✓ Analysis complete: cost=${cost:.4f}, model={model}, confidence={confidence:.2f}")
 
+            # Save checkpoint after successful analysis
+            completed_files.add(file_name)
+            checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(checkpoint_file, 'w', encoding='utf-8') as f:
+                json.dump({"completed": list(completed_files)}, f)
+
         except Exception as e:
             logger.error(f"✗ Analysis failed for {file_name}: {e}")
             import traceback
@@ -438,6 +477,14 @@ async def run_benchmark():
     # Save cost tracker data
     cost_tracker.save()
     cache_manager.save()
+
+    # Clean up checkpoint file on successful completion
+    if checkpoint_file.exists():
+        try:
+            checkpoint_file.unlink()
+            logger.info("Checkpoint file cleaned up")
+        except Exception as e:
+            logger.warning(f"Failed to clean up checkpoint: {e}")
 
     logger.info("\n✅ Benchmark complete!")
 
