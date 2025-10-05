@@ -1,5 +1,12 @@
 # SpringMVC Agent Analyzer Configuration
 
+# Server Mode Configuration
+server:
+  # Operating mode: "api" or "passive"
+  # - api: MCP server calls Anthropic API directly (requires ANTHROPIC_API_KEY)
+  # - passive: MCP server provides tools for Claude Code to use (no API key needed)
+  mode: "api"  # Change to "passive" for Claude Code subscription users
+
 # LLM Model Configuration
 llm:
   # Model routing strategy

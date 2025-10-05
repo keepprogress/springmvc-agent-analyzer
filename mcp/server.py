@@ -97,6 +97,9 @@ class SpringMVCAnalyzerServer:
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default configuration."""
         return {
+            "server": {
+                "mode": "api"  # "api" or "passive"
+            },
             "models": {
                 "haiku": "claude-3-5-haiku-20241022",
                 "sonnet": "claude-3-5-sonnet-20241022",
@@ -116,58 +119,72 @@ class SpringMVCAnalyzerServer:
 
     async def _initialize_components(self):
         """Initialize core components lazily."""
-        if self.model_router is not None:
+        # Check if already initialized (use graph_builder as marker)
+        if self.graph_builder is not None:
             return  # Already initialized
 
-        self.logger.info("Initializing core components...")
+        mode = self.config.get("server", {}).get("mode", "api")
+        self.logger.info(f"Initializing core components in {mode} mode...")
 
-        # Initialize core services
-        self.model_router = ModelRouter(self.config)
-        self.prompt_manager = PromptManager()
-        self.cost_tracker = CostTracker()
-        self.cache_manager = CacheManager()
+        # Always initialize graph builder and prompt manager
         self.graph_builder = GraphBuilder()
+        self.prompt_manager = PromptManager()
 
-        # Initialize agents
-        self.agents = {
-            "controller": ControllerAgent(
-                self.model_router,
-                self.prompt_manager,
-                self.cost_tracker,
-                self.cache_manager,
-                self.config
-            ),
-            "jsp": JSPAgent(
-                self.model_router,
-                self.prompt_manager,
-                self.cost_tracker,
-                self.cache_manager,
-                self.config
-            ),
-            "service": ServiceAgent(
-                self.model_router,
-                self.prompt_manager,
-                self.cost_tracker,
-                self.cache_manager,
-                self.config
-            ),
-            "mapper": MapperAgent(
-                self.model_router,
-                self.prompt_manager,
-                self.cost_tracker,
-                self.cache_manager,
-                self.config
-            ),
-            "procedure": ProcedureAgent(
-                self.model_router,
-                self.prompt_manager,
-                self.cost_tracker,
-                self.cache_manager,
-                self.config
+        if mode == "api":
+            # API mode: Full initialization with LLM agents
+            self.model_router = ModelRouter(self.config)
+            self.cost_tracker = CostTracker()
+            self.cache_manager = CacheManager()
+
+            # Initialize agents
+            self.agents = {
+                "controller": ControllerAgent(
+                    self.model_router,
+                    self.prompt_manager,
+                    self.cost_tracker,
+                    self.cache_manager,
+                    self.config
+                ),
+                "jsp": JSPAgent(
+                    self.model_router,
+                    self.prompt_manager,
+                    self.cost_tracker,
+                    self.cache_manager,
+                    self.config
+                ),
+                "service": ServiceAgent(
+                    self.model_router,
+                    self.prompt_manager,
+                    self.cost_tracker,
+                    self.cache_manager,
+                    self.config
+                ),
+                "mapper": MapperAgent(
+                    self.model_router,
+                    self.prompt_manager,
+                    self.cost_tracker,
+                    self.cache_manager,
+                    self.config
+                ),
+                "procedure": ProcedureAgent(
+                    self.model_router,
+                    self.prompt_manager,
+                    self.cost_tracker,
+                    self.cache_manager,
+                    self.config
+                )
+            }
+            self.logger.info("Core components initialized (API mode)")
+
+        elif mode == "passive":
+            # Passive mode: No LLM agents, only tools for Claude Code
+            self.logger.info(
+                "Core components initialized (Passive mode) - "
+                "LLM analysis will be performed by Claude Code"
             )
-        }
 
-        self.logger.info("Core components initialized")
+        else:
+            raise ValueError(f"Invalid server mode: {mode}. Must be 'api' or 'passive'")
 
     def _register_handlers(self):
         """Register MCP protocol handlers."""
@@ -175,7 +192,18 @@ class SpringMVCAnalyzerServer:
         # Tool handlers
         @self.server.list_tools()
         async def handle_list_tools() -> List[types.Tool]:
-            """List available MCP tools."""
+            """List available MCP tools based on server mode."""
+            mode = self.config.get("server", {}).get("mode", "api")
+
+            if mode == "passive":
+                # Passive mode tools: for Claude Code to read files and submit analysis
+                return self._get_passive_mode_tools()
+            else:
+                # API mode tools: full autonomous analysis
+                return self._get_api_mode_tools()
+
+        def _get_api_mode_tools(self) -> List[types.Tool]:
+            """Get tools for API mode (autonomous LLM analysis)."""
             return [
                 types.Tool(
                     name="analyze_file",
@@ -312,10 +340,19 @@ class SpringMVCAnalyzerServer:
                     self.clear_old_results(max_age)
 
                 # Execute tool
-                if name == "analyze_file":
+                # Passive mode tools
+                if name == "read_file_with_prompt":
+                    result = await self._tool_read_file_with_prompt(arguments)
+                elif name == "submit_analysis":
+                    result = await self._tool_submit_analysis(arguments)
+                elif name == "build_graph":
+                    result = await self._tool_build_graph(arguments)
+                # API mode tools
+                elif name == "analyze_file":
                     result = await self._tool_analyze_file(arguments)
                 elif name == "analyze_directory":
                     result = await self._tool_analyze_directory(arguments)
+                # Shared tools (both modes)
                 elif name == "query_graph":
                     result = await self._tool_query_graph(arguments)
                 elif name == "find_dependencies":
@@ -340,7 +377,7 @@ class SpringMVCAnalyzerServer:
         @self.server.list_resources()
         async def handle_list_resources() -> List[types.Resource]:
             """List available MCP resources."""
-            return [
+            resources = [
                 types.Resource(
                     uri="analysis://results",
                     name="Analysis Results",
@@ -355,6 +392,44 @@ class SpringMVCAnalyzerServer:
                 )
             ]
 
+            # Add prompt template resources in passive mode
+            mode = self.config.get("server", {}).get("mode", "api")
+            if mode == "passive":
+                resources.extend([
+                    types.Resource(
+                        uri="prompts://controller",
+                        name="Controller Analysis Prompt",
+                        description="Prompt template for analyzing Spring MVC Controllers",
+                        mimeType="text/plain"
+                    ),
+                    types.Resource(
+                        uri="prompts://jsp",
+                        name="JSP Analysis Prompt",
+                        description="Prompt template for analyzing JSP files",
+                        mimeType="text/plain"
+                    ),
+                    types.Resource(
+                        uri="prompts://service",
+                        name="Service Analysis Prompt",
+                        description="Prompt template for analyzing Service classes",
+                        mimeType="text/plain"
+                    ),
+                    types.Resource(
+                        uri="prompts://mapper",
+                        name="MyBatis Mapper Analysis Prompt",
+                        description="Prompt template for analyzing MyBatis Mapper XML files",
+                        mimeType="text/plain"
+                    ),
+                    types.Resource(
+                        uri="prompts://procedure",
+                        name="Stored Procedure Analysis Prompt",
+                        description="Prompt template for analyzing Oracle stored procedures",
+                        mimeType="text/plain"
+                    )
+                ])
+
+            return resources
+
         @self.server.read_resource()
         async def handle_read_resource(uri: str) -> str:
             """Handle resource read requests."""
@@ -363,12 +438,139 @@ class SpringMVCAnalyzerServer:
             if uri == "analysis://results":
                 return json.dumps(self.analysis_results, indent=2)
             elif uri == "graph://stats":
-                stats = self.graph_builder.get_stats()
+                stats = self.graph_builder.get_statistics()
                 return json.dumps(stats, indent=2)
+            elif uri.startswith("prompts://"):
+                # Extract agent type from URI
+                agent_type = uri.replace("prompts://", "")
+                if agent_type in ["controller", "jsp", "service", "mapper", "procedure"]:
+                    try:
+                        prompt = self.prompt_manager.get_prompt(
+                            agent_name=agent_type,
+                            prompt_type="analysis"
+                        )
+                        return prompt
+                    except Exception as e:
+                        raise ValueError(f"Failed to load prompt for {agent_type}: {str(e)}")
+                else:
+                    raise ValueError(f"Unknown agent type in prompt URI: {agent_type}")
             else:
                 raise ValueError(f"Unknown resource: {uri}")
 
     # Tool implementation methods
+
+    # Passive Mode Tool Implementations
+
+    async def _tool_read_file_with_prompt(self, arguments: dict) -> Dict[str, Any]:
+        """
+        Implement read_file_with_prompt tool (Passive mode).
+
+        Reads a file and returns its content along with the appropriate
+        analysis prompt template for Claude Code to use.
+        """
+        file_path = arguments["file_path"]
+        agent_type = arguments.get("agent_type", "auto")
+
+        # Auto-detect agent type if needed
+        if agent_type == "auto":
+            agent_type = self._detect_agent_type(file_path)
+            if not agent_type:
+                return {
+                    "error": f"Could not auto-detect agent type for {file_path}",
+                    "file_path": file_path
+                }
+
+        # Read file content
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+        except Exception as e:
+            return {
+                "error": f"Failed to read file: {str(e)}",
+                "file_path": file_path
+            }
+
+        # Get prompt template
+        prompt_template = self.prompt_manager.get_prompt(
+            agent_name=agent_type,
+            prompt_type="analysis"
+        )
+
+        return {
+            "file_path": file_path,
+            "agent_type": agent_type,
+            "file_content": file_content,
+            "prompt_template": prompt_template,
+            "instructions": (
+                f"Please analyze this {agent_type} file using the prompt template provided. "
+                "Return the analysis in the same JSON format as specified in the template. "
+                "Then use submit_analysis tool to submit your results."
+            )
+        }
+
+    async def _tool_submit_analysis(self, arguments: dict) -> Dict[str, Any]:
+        """
+        Implement submit_analysis tool (Passive mode).
+
+        Stores analysis results submitted by Claude Code for later graph building.
+        """
+        file_path = arguments["file_path"]
+        agent_type = arguments["agent_type"]
+        analysis = arguments["analysis"]
+        confidence = arguments.get("confidence", 0.9)
+
+        # Store result in the same format as API mode
+        result = {
+            "agent": agent_type,
+            "analysis": analysis,
+            "confidence": confidence,
+            "model_used": "claude-code",
+            "cost": 0.0,  # No API cost in passive mode
+            "cached": False,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        self.analysis_results[file_path] = result
+        self.result_timestamps[file_path] = datetime.now()
+
+        return {
+            "status": "success",
+            "file_path": file_path,
+            "agent_type": agent_type,
+            "message": f"Analysis results stored for {file_path}"
+        }
+
+    async def _tool_build_graph(self, arguments: dict) -> Dict[str, Any]:
+        """
+        Implement build_graph tool (Passive mode).
+
+        Builds the knowledge graph from all submitted analysis results.
+        """
+        if not self.analysis_results:
+            return {
+                "status": "warning",
+                "message": "No analysis results to build graph from",
+                "nodes_added": 0,
+                "edges_added": 0
+            }
+
+        # Build graph from results
+        nodes_added, edges_added = self.graph_builder.build_from_analysis_results(
+            self.analysis_results
+        )
+
+        # Get graph statistics
+        stats = self.graph_builder.get_statistics()
+
+        return {
+            "status": "success",
+            "nodes_added": nodes_added,
+            "edges_added": edges_added,
+            "total_files_analyzed": len(self.analysis_results),
+            "graph_stats": stats
+        }
+
+    # API Mode Tool Implementations
 
     async def _tool_analyze_file(self, arguments: dict) -> Dict[str, Any]:
         """Implement analyze_file tool."""
@@ -584,6 +786,152 @@ class SpringMVCAnalyzerServer:
             return "procedure"
 
         return None
+
+    def _get_passive_mode_tools(self) -> List[types.Tool]:
+        """
+        Get tools for Passive mode (Claude Code performs analysis).
+
+        In passive mode, Claude Code reads files and analyzes them itself.
+        The MCP server provides tools for file access, prompt templates,
+        result submission, and graph operations.
+        """
+        return [
+            types.Tool(
+                name="read_file_with_prompt",
+                description="Read a file and get the analysis prompt template for Claude Code to use",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file to analyze"
+                        },
+                        "agent_type": {
+                            "type": "string",
+                            "description": "Agent type (auto-detected if not specified)",
+                            "enum": ["controller", "jsp", "service", "mapper", "procedure", "auto"]
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            ),
+            types.Tool(
+                name="submit_analysis",
+                description="Submit analysis results from Claude Code to be stored and used for graph building",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file that was analyzed"
+                        },
+                        "agent_type": {
+                            "type": "string",
+                            "description": "Type of agent/analysis performed",
+                            "enum": ["controller", "jsp", "service", "mapper", "procedure"]
+                        },
+                        "analysis": {
+                            "type": "object",
+                            "description": "Analysis results (structured JSON matching agent schema)"
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "description": "Confidence score (0.0 - 1.0)",
+                            "minimum": 0.0,
+                            "maximum": 1.0
+                        }
+                    },
+                    "required": ["file_path", "agent_type", "analysis"]
+                }
+            ),
+            types.Tool(
+                name="build_graph",
+                description="Build knowledge graph from submitted analysis results",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            types.Tool(
+                name="query_graph",
+                description="Query the knowledge graph for nodes, relationships, or statistics",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query_type": {
+                            "type": "string",
+                            "description": "Type of query to perform",
+                            "enum": ["stats", "find_node", "neighbors", "paths", "all_nodes"]
+                        },
+                        "node_id": {
+                            "type": "string",
+                            "description": "Node ID for node-specific queries"
+                        },
+                        "target_id": {
+                            "type": "string",
+                            "description": "Target node ID for path queries"
+                        }
+                    },
+                    "required": ["query_type"]
+                }
+            ),
+            types.Tool(
+                name="find_dependencies",
+                description="Find all dependencies of a node (transitive closure)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "node_id": {
+                            "type": "string",
+                            "description": "Node ID to analyze"
+                        },
+                        "max_depth": {
+                            "type": "number",
+                            "description": "Maximum depth to traverse (optional)"
+                        }
+                    },
+                    "required": ["node_id"]
+                }
+            ),
+            types.Tool(
+                name="analyze_impact",
+                description="Analyze the impact of changing a node",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "node_id": {
+                            "type": "string",
+                            "description": "Node ID to analyze"
+                        },
+                        "max_depth": {
+                            "type": "number",
+                            "description": "Maximum depth to traverse (optional)"
+                        }
+                    },
+                    "required": ["node_id"]
+                }
+            ),
+            types.Tool(
+                name="export_graph",
+                description="Export knowledge graph to various visualization formats",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "output_path": {
+                            "type": "string",
+                            "description": "Path to output file"
+                        },
+                        "format": {
+                            "type": "string",
+                            "description": "Export format",
+                            "enum": ["graphml", "gexf", "json", "dot", "d3", "cytoscape"]
+                        }
+                    },
+                    "required": ["output_path", "format"]
+                }
+            )
+        ]
 
     def clear_old_results(self, max_age_seconds: int = 3600) -> int:
         """

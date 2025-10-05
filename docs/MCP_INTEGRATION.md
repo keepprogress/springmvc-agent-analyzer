@@ -4,7 +4,29 @@
 
 The SpringMVC Agent Analyzer provides a Model Context Protocol (MCP) server for integration with Claude Code and other MCP clients. This enables interactive code analysis directly within your development environment.
 
-## Quick Start
+## Two Operating Modes
+
+The MCP server supports two modes:
+
+### 🔧 API Mode (Default)
+- **For users with**: Anthropic API subscription
+- **Requires**: `ANTHROPIC_API_KEY` environment variable
+- **How it works**: MCP server calls Anthropic API directly for analysis
+- **Best for**: Autonomous batch processing, cost optimization via model routing
+
+### 🚀 Passive Mode (For Claude Code Subscription Users)
+- **For users with**: Claude Code subscription (no API key)
+- **Requires**: No API key needed!
+- **How it works**: Claude Code performs analysis, MCP server manages graph
+- **Best for**: Interactive analysis, using existing Claude Code subscription
+
+**Choose your mode:**
+- If you have API subscription → Use API mode (this guide)
+- If you only have Claude Code subscription → See [Passive Mode Guide](./PASSIVE_MODE_GUIDE.md)
+
+---
+
+## Quick Start (API Mode)
 
 ### 1. Install Dependencies
 

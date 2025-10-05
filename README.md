@@ -99,12 +99,33 @@ This project reimagines legacy code analysis by placing **LLM Agents at the cent
 
 ---
 
-## 🚀 Quick Start
+## 💡 Choose Your Mode
+
+This project supports **two operating modes** to fit your subscription:
+
+### API Mode (With Anthropic API Subscription)
+✅ Autonomous batch analysis
+✅ Hierarchical model routing (Haiku → Sonnet → Opus)
+✅ Cost optimization ($4.23 per project average)
+📋 **Requires**: `ANTHROPIC_API_KEY` environment variable
+
+### Passive Mode (With Claude Code Subscription Only) ⭐
+✅ No API key needed!
+✅ Uses your existing Claude Code subscription
+✅ No additional API costs
+✅ Interactive analysis with full graph capabilities
+📋 **Setup**: Set `server.mode: "passive"` in `config/config.yaml`
+
+**👉 If you only have Claude Code subscription and no API key, see [Passive Mode Guide](./docs/PASSIVE_MODE_GUIDE.md)**
+
+---
+
+## 🚀 Quick Start (API Mode)
 
 ### Prerequisites
 
 - Python 3.10+
-- Anthropic API Key
+- Anthropic API Key (for API mode) OR Claude Code subscription (for Passive mode)
 - Oracle Database (optional, for DB extraction)
 
 ### Installation
