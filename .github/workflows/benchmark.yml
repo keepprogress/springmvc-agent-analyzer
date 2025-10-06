@@ -35,6 +35,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
+      - name: Cache benchmark baselines
+        uses: actions/cache@v4
+        with:
+          path: .benchmarks
+          key: benchmarks-py${{ matrix.python-version }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            benchmarks-py${{ matrix.python-version }}-${{ github.ref_name }}-
+            benchmarks-py${{ matrix.python-version }}-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

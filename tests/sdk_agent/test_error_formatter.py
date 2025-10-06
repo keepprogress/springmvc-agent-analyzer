@@ -594,5 +594,180 @@ class TestModuleExports:
             assert hasattr(error_formatter, export)
 
 
+class TestConfigurableTruncationLimits:
+    """Test configurable truncation limits feature."""
+
+    def test_custom_value_length_limit(self):
+        """Test with custom max_context_value_length."""
+        large_value = "x" * 200  # Smaller than default 500
+
+        # Use custom limit of 100
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test custom limit",
+            context={"field": large_value},
+            max_context_value_length=100
+        )
+
+        # Should be truncated at 100, not 500
+        assert "[truncated]" in result
+        assert "x" * 200 not in result
+        assert "x" * 100 in result
+
+    def test_custom_total_length_limit(self):
+        """Test with custom max_total_context_length."""
+        # Create context that would exceed custom limit but not default
+        context = {f"field_{i}": "x" * 100 for i in range(5)}
+
+        # Use custom total limit of 300 (would normally be 2000)
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test custom total limit",
+            context=context,
+            max_total_context_length=300
+        )
+
+        # Should hit total limit
+        assert "exceeded" in result.lower() or "truncated" in result.lower()
+
+    def test_disable_truncation_with_negative_one(self):
+        """Test disabling truncation with -1."""
+        large_value = "x" * 10000  # Very large
+
+        # Disable all truncation
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="No truncation test",
+            context={"field": large_value},
+            max_context_value_length=-1,
+            max_total_context_length=-1
+        )
+
+        # Should NOT be truncated
+        assert "[truncated]" not in result
+        assert large_value in result
+
+    def test_verbose_mode_no_truncation(self):
+        """Test verbose/debug mode with no truncation."""
+        context = {
+            "large_data": "y" * 1000,
+            "more_data": "z" * 1000,
+            "even_more": "a" * 1000
+        }
+
+        # Verbose mode (no limits)
+        result = ErrorFormatter.format_error_message(
+            error_type="DebugError",
+            component="debug_mode",
+            details="Full context for debugging",
+            context=context,
+            max_context_value_length=-1,
+            max_total_context_length=-1
+        )
+
+        # All data should be present
+        assert "y" * 1000 in result
+        assert "z" * 1000 in result
+        assert "a" * 1000 in result
+        assert "[truncated]" not in result
+
+    def test_mixed_limits_custom_value_default_total(self):
+        """Test custom value limit with default total limit."""
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Mixed limits",
+            context={"field": "x" * 200},
+            max_context_value_length=100  # Custom
+            # max_total_context_length uses default 2000
+        )
+
+        # Should truncate at custom value limit
+        assert "[truncated]" in result
+
+
+class TestTruncationLogging:
+    """Test logging of truncation events."""
+
+    @patch('sdk_agent.error_formatter.logger')
+    def test_logs_individual_value_truncation(self, mock_logger):
+        """Test that individual value truncation is logged."""
+        large_value = "x" * 1000
+
+        ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test logging",
+            context={"large_field": large_value}
+        )
+
+        # Should log debug message about truncation
+        assert mock_logger.debug.called
+        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+        assert any("Truncated context value" in call for call in debug_calls)
+        assert any("large_field" in call for call in debug_calls)
+
+    @patch('sdk_agent.error_formatter.logger')
+    def test_logs_total_context_truncation(self, mock_logger):
+        """Test that total context truncation is logged."""
+        # Create context exceeding total limit
+        context = {f"field_{i}": "x" * 300 for i in range(10)}
+
+        ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test total logging",
+            context=context
+        )
+
+        # Should log debug message about total truncation
+        assert mock_logger.debug.called
+        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+        assert any("Total context length exceeded" in call for call in debug_calls)
+
+    @patch('sdk_agent.error_formatter.logger')
+    def test_logs_truncation_count(self, mock_logger):
+        """Test that truncation count is logged."""
+        context = {
+            "field1": "x" * 1000,
+            "field2": "y" * 1000
+        }
+
+        ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test count logging",
+            context=context,
+            max_total_context_length=1500  # Will hit limit
+        )
+
+        # Should log with truncation count
+        assert mock_logger.debug.called
+        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+        # Check that count information is in logs
+        assert any("Truncated" in call for call in debug_calls)
+
+    @patch('sdk_agent.error_formatter.logger')
+    def test_no_logging_when_no_truncation(self, mock_logger):
+        """Test that no debug logs when truncation doesn't occur."""
+        small_context = {"field": "small value"}
+
+        ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="No truncation",
+            context=small_context
+        )
+
+        # Should NOT log debug messages (no truncation occurred)
+        if mock_logger.debug.called:
+            debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+            # Should not have truncation-related logs
+            assert not any("Truncated" in call for call in debug_calls)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

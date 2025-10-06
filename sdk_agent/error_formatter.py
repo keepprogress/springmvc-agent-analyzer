@@ -31,33 +31,57 @@ class ErrorFormatter:
     """Standardized error message formatter."""
 
     @staticmethod
-    def _truncate_context(context: ErrorContext) -> ErrorContext:
+    def _truncate_context(
+        context: ErrorContext,
+        max_value_length: int = MAX_CONTEXT_VALUE_LENGTH,
+        max_total_length: int = MAX_TOTAL_CONTEXT_LENGTH
+    ) -> ErrorContext:
         """
         Truncate context values to prevent excessive log spam.
 
         Args:
             context: Context dictionary with potentially large values
+            max_value_length: Maximum length for individual context values (default: 500)
+            max_total_length: Maximum total length for all context (default: 2000)
 
         Returns:
             Truncated context dictionary
+
+        Note:
+            Logs debug messages when truncation occurs for monitoring purposes.
         """
         if not context:
             return context
 
         truncated = {}
         total_length = 0
+        truncation_count = 0
 
         for key, value in context.items():
             value_str = str(value)
+            original_length = len(value_str)
 
             # Truncate individual values
-            if len(value_str) > MAX_CONTEXT_VALUE_LENGTH:
-                value_str = value_str[:MAX_CONTEXT_VALUE_LENGTH] + "... [truncated]"
+            if original_length > max_value_length:
+                value_str = value_str[:max_value_length] + "... [truncated]"
+                truncation_count += 1
+                # Log truncation for monitoring
+                logger.debug(
+                    f"Truncated context value: '{key}' "
+                    f"(original: {original_length} chars, limit: {max_value_length})"
+                )
 
             # Check total context length
             total_length += len(value_str)
-            if total_length > MAX_TOTAL_CONTEXT_LENGTH:
-                truncated["_note"] = f"Additional context truncated (exceeded {MAX_TOTAL_CONTEXT_LENGTH} chars)"
+            if total_length > max_total_length:
+                truncated["_note"] = (
+                    f"Additional context truncated (exceeded {max_total_length} chars, "
+                    f"{truncation_count} values truncated)"
+                )
+                logger.debug(
+                    f"Total context length exceeded: {total_length} > {max_total_length}. "
+                    f"Truncated {truncation_count} values."
+                )
                 break
 
             truncated[key] = value_str
@@ -70,7 +94,9 @@ class ErrorFormatter:
         component: str,
         details: str,
         context: Optional[ErrorContext] = None,
-        suggestions: Optional[SuggestionList] = None
+        suggestions: Optional[SuggestionList] = None,
+        max_context_value_length: int = MAX_CONTEXT_VALUE_LENGTH,
+        max_total_context_length: int = MAX_TOTAL_CONTEXT_LENGTH
     ) -> str:
         """
         Format error message with consistent structure.
@@ -82,6 +108,10 @@ class ErrorFormatter:
             context: Optional context information (e.g., file paths, parameters)
                      Large context values are automatically truncated to prevent log spam
             suggestions: Optional list of suggestions to fix the error
+            max_context_value_length: Maximum length for individual context values (default: 500)
+                                     Set to -1 to disable truncation for individual values
+            max_total_context_length: Maximum total length for all context (default: 2000)
+                                     Set to -1 to disable total truncation
 
         Returns:
             Formatted error message string
@@ -95,14 +125,43 @@ class ErrorFormatter:
               - suggestion 2
 
         Note:
-            Context values exceeding MAX_CONTEXT_VALUE_LENGTH (500) chars are truncated.
-            Total context exceeding MAX_TOTAL_CONTEXT_LENGTH (2000) chars is truncated.
+            Context values exceeding max_context_value_length are truncated.
+            Total context exceeding max_total_context_length is truncated.
+            Use custom limits for debug/verbose modes or disable with -1.
+
+        Examples:
+            # Default limits (500/2000)
+            format_error_message("Error", "component", "details", context={...})
+
+            # Verbose mode (no truncation)
+            format_error_message("Error", "component", "details",
+                               context={...},
+                               max_context_value_length=-1,
+                               max_total_context_length=-1)
+
+            # Custom limits
+            format_error_message("Error", "component", "details",
+                               context={...},
+                               max_context_value_length=1000,
+                               max_total_context_length=5000)
         """
         lines = [f"[{error_type}] {component}: {details}"]
 
         if context:
-            # Truncate context to prevent log spam
-            truncated_context = ErrorFormatter._truncate_context(context)
+            # Truncate context to prevent log spam (unless disabled with -1)
+            if max_context_value_length == -1 and max_total_context_length == -1:
+                # No truncation
+                truncated_context = context
+            else:
+                # Apply truncation with custom or default limits
+                actual_value_limit = max_context_value_length if max_context_value_length != -1 else float('inf')
+                actual_total_limit = max_total_context_length if max_total_context_length != -1 else float('inf')
+                truncated_context = ErrorFormatter._truncate_context(
+                    context,
+                    int(actual_value_limit) if actual_value_limit != float('inf') else MAX_CONTEXT_VALUE_LENGTH * 1000,
+                    int(actual_total_limit) if actual_total_limit != float('inf') else MAX_TOTAL_CONTEXT_LENGTH * 1000
+                )
+
             lines.append("\nContext:")
             for key, value in truncated_context.items():
                 lines.append(f"  - {key}: {value}")

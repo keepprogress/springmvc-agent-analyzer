@@ -6,6 +6,68 @@ Comprehensive guide for using the standardized error formatting system in SDK Ag
 
 The SDK Agent uses a **standardized error formatting system** (`ErrorFormatter`) to provide consistent, informative error messages across all components. This improves debugging efficiency and provides clear guidance for resolving issues.
 
+## Quick Start
+
+Get started with error formatting in 30 seconds:
+
+```python
+from sdk_agent.error_formatter import ErrorFormatter
+
+# Basic error message
+error_msg = ErrorFormatter.format_error_message(
+    error_type="ValueError",
+    component="my_module",
+    details="Invalid input provided",
+    context={"input": user_input, "expected": "positive integer"},
+    suggestions=["Check input format", "Use positive integers only"]
+)
+print(error_msg)
+```
+
+**Output:**
+```
+[ValueError] my_module: Invalid input provided
+
+Context:
+  - input: -5
+  - expected: positive integer
+
+Suggestions:
+  - Check input format
+  - Use positive integers only
+```
+
+### Common Use Cases
+
+**File Errors:**
+```python
+ErrorFormatter.format_file_error(
+    file_path="config.json",
+    error=FileNotFoundError("File not found"),
+    operation="read"
+)
+```
+
+**Validation Errors:**
+```python
+ErrorFormatter.format_validation_error(
+    field_name="batch_size",
+    value=0,
+    expected="Must be >= 1"
+)
+```
+
+**Configuration Errors:**
+```python
+ErrorFormatter.format_configuration_error(
+    parameter="max_concurrency",
+    value=200,
+    valid_range="1-100"
+)
+```
+
+**👉 For detailed examples and advanced usage, see [Usage Examples](#usage-examples) below.**
+
 ## Error Format Structure
 
 All errors follow this consistent structure:
