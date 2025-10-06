@@ -98,6 +98,11 @@ FILE_EXT_SQL = ".sql"
 # Graph Export Formats
 GRAPH_EXPORT_FORMATS = ["d3", "cytoscape", "dot", "graphml"]
 
+# MCP Server Configuration
+DEFAULT_MCP_SERVER_NAME = "springmvc-analyzer"
+DEFAULT_MCP_SERVER_VERSION = "1.0.0"
+MCP_SERVER_PREFIX = "mcp__analyzer__"
+
 # Logging
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_LOG_FILE = "logs/sdk_agent.log"

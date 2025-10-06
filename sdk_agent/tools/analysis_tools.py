@@ -19,7 +19,6 @@ For now, these are regular async functions with proper structure.
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import logging
-import glob
 
 from sdk_agent.agent_factory import get_agent
 from sdk_agent.utils import (
@@ -585,7 +584,13 @@ async def analyze_directory(args: Dict[str, Any]) -> Dict[str, Any]:
         if recursive:
             files = list(dir_obj.glob(pattern))
         else:
-            files = list(dir_obj.glob(pattern.lstrip("**/")))
+            # Remove recursive prefix safely
+            non_recursive_pattern = pattern.lstrip("**/")
+            # Validate pattern isn't empty after stripping
+            if not non_recursive_pattern or non_recursive_pattern == pattern:
+                # Pattern didn't have **/ prefix, use as-is
+                non_recursive_pattern = pattern
+            files = list(dir_obj.glob(non_recursive_pattern))
 
         # Limit number of files
         if len(files) > max_files:

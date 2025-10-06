@@ -7,7 +7,10 @@ from claude-agent-sdk to enable SDK integration.
 All tools are exposed as MCP tools through create_sdk_mcp_server().
 """
 
-from claude_agent_sdk import tool
+from sdk_agent.sdk_imports import import_sdk
+
+# Import SDK components with error handling
+tool, _, _, _ = import_sdk()
 
 # Import our existing tool functions and metadata
 from sdk_agent.tools.analysis_tools import (

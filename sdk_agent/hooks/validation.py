@@ -17,14 +17,8 @@ Note: Hook decorators will be added in Phase 5 when SDK is integrated.
 """
 
 from typing import Dict, Any, Optional
-from pathlib import Path
 import logging
 
-from sdk_agent.constants import (
-    FILE_TYPE_CONTROLLER,
-    MIN_CONFIDENCE_THRESHOLD,
-    VALID_FILE_TYPES
-)
 from sdk_agent.utils import expand_file_path
 from sdk_agent.exceptions import SDKAgentError
 

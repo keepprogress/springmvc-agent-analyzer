@@ -105,28 +105,63 @@ class SpringMVCAnalyzerAgent:
 
         # Initialize SDK Client (Phase 5)
         from sdk_agent.mcp_server_factory import create_analyzer_mcp_server
-        from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
+        from sdk_agent.sdk_imports import import_sdk
+
+        # Import SDK components with error handling
+        _, _, ClaudeAgentOptions, ClaudeSDKClient = import_sdk()
 
         # Create MCP server with all tools
         self.mcp_server = create_analyzer_mcp_server()
 
-        # Configure SDK options
+        # Import and configure hooks (if enabled)
+        from sdk_agent.hooks.validation import ValidationHook
+        from sdk_agent.hooks.cache import CacheHook
+        from sdk_agent.hooks.cleanup import CleanupHook
+        from sdk_agent.hooks.context_manager import ContextManagerHook
+        from sdk_agent.hooks.input_enhancement import InputEnhancementHook
+
+        # Initialize hooks
+        validation_hook = ValidationHook({"enabled": self.config.hooks_enabled})
+        cache_hook = CacheHook({
+            "enabled": self.config.hooks_enabled,
+            "cache_dir": self.config.cache_dir
+        })
+        cleanup_hook = CleanupHook({"enabled": self.config.hooks_enabled})
+        context_hook = ContextManagerHook({"enabled": self.config.hooks_enabled})
+        input_hook = InputEnhancementHook({"enabled": self.config.hooks_enabled})
+
+        # Store hooks for reference
+        self.hooks = [
+            validation_hook,
+            cache_hook,
+            cleanup_hook,
+            context_hook,
+            input_hook
+        ]
+
+        # Get dynamic tool list from sdk_tools
+        from sdk_agent.sdk_tools import ALL_SDK_TOOLS
+        from sdk_agent.constants import MCP_SERVER_PREFIX
+        allowed_tool_names = [f"{MCP_SERVER_PREFIX}{func.__name__}" for func in ALL_SDK_TOOLS]
+
+        # Configure SDK options with hooks
         sdk_options = ClaudeAgentOptions(
             mcp_servers={"analyzer": self.mcp_server},
             system_prompt=self.system_prompt,
             max_turns=self.config.max_turns,
-            # Enable all analyzer tools
-            allowed_tools=[f"mcp__analyzer__{tool}" for tool in [
-                "analyze_controller", "analyze_jsp", "analyze_service",
-                "analyze_mapper", "analyze_procedure", "analyze_directory",
-                "build_graph", "export_graph", "query_graph",
-                "find_dependencies", "analyze_impact"
-            ]]
+            allowed_tools=allowed_tool_names,
+            # Register hooks if enabled
+            hooks={
+                "PreToolUse": [validation_hook] if self.config.hooks_enabled else [],
+                "PostToolUse": [cache_hook] if self.config.hooks_enabled else [],
+                "Stop": [cleanup_hook] if self.config.hooks_enabled else [],
+                "PreCompact": [context_hook] if self.config.hooks_enabled else [],
+                "UserPromptSubmit": [input_hook] if self.config.hooks_enabled else [],
+            } if self.config.hooks_enabled else {}
         )
 
         # Create SDK client instance
         self.client = ClaudeSDKClient(options=sdk_options)
-        self.hooks: List[Any] = []     # Hooks registered separately (Phase 5)
 
         logger.info(
             f"SpringMVCAnalyzerAgent initialized: mode={self.config.mode}, "
@@ -147,7 +182,10 @@ Use available tools to analyze code and provide insights."""
         Start interactive dialogue mode with SDK client.
 
         Uses ClaudeSDKClient for continuous conversation with context retention.
+        Uses async I/O (aioconsole) to avoid blocking the event loop.
         """
+        import aioconsole
+
         logger.info("Starting interactive mode with SDK client...")
 
         print("🤖 SpringMVC Agent Analyzer - Interactive Mode")
@@ -159,11 +197,14 @@ Use available tools to analyze code and provide insights."""
         print("\nType your queries. Press Ctrl+C to exit.\n")
 
         try:
-            async with self.client:
+            # Initialize client session
+            await self.client.__aenter__()
+
+            try:
                 while True:
                     try:
-                        # Get user input
-                        user_input = input("You: ")
+                        # Get user input asynchronously (non-blocking)
+                        user_input = await aioconsole.ainput("You: ")
                         if not user_input.strip():
                             continue
 
@@ -179,9 +220,16 @@ Use available tools to analyze code and provide insights."""
                     except KeyboardInterrupt:
                         logger.info("User interrupted interactive session")
                         break
+                    except EOFError:
+                        logger.info("EOF received, ending session")
+                        break
                     except Exception as e:
                         logger.error(f"Error in interactive loop: {e}", exc_info=True)
                         print(f"\nError: {e}\n")
+
+            finally:
+                # Clean up client session
+                await self.client.__aexit__(None, None, None)
 
         except Exception as e:
             logger.error(f"Failed to start interactive mode: {e}", exc_info=True)
@@ -220,13 +268,21 @@ Output format: {output_format}
 """
 
         results = []
-        async with self.client:
+
+        # Initialize client session
+        await self.client.__aenter__()
+
+        try:
             # Send analysis request
             await self.client.query(analysis_prompt)
 
             # Collect response
             async for message in self.client.receive_response():
                 results.append(message)
+
+        finally:
+            # Clean up client session
+            await self.client.__aexit__(None, None, None)
 
         full_response = "".join(results)
 
