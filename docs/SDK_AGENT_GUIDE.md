@@ -1,1110 +1,970 @@
-# SDK Agent 使用指南
+# SDK Agent Mode - 使用指南
 
-**SpringMVC Agent Analyzer - SDK Agent Mode User Guide**
-
-本指南介紹如何使用 SDK Agent 模式進行 Spring MVC 專案分析。
+> **版本**: 1.0.0
+> **狀態**: Production Ready
+> **最後更新**: 2025-10-06
+> **適用於**: SpringMVC Agent Analyzer v1.0.0+
 
 ---
 
 ## 📋 目錄
 
-- [快速開始](#快速開始)
-- [三種模式比較](#三種模式比較)
-- [安裝配置](#安裝配置)
-- [使用方式](#使用方式)
-  - [交互式模式](#交互式模式)
-  - [批量分析模式](#批量分析模式)
-  - [編程 API](#編程-api)
-- [常見使用場景](#常見使用場景)
-- [進階功能](#進階功能)
-- [故障排除](#故障排除)
-- [FAQ](#faq)
+1. [快速開始](#快速開始)
+2. [安裝指南](#安裝指南)
+3. [配置說明](#配置說明)
+4. [使用方式](#使用方式)
+5. [工具參考](#工具參考)
+6. [Hook 系統](#hook-系統)
+7. [最佳實踐](#最佳實踐)
+8. [故障排除](#故障排除)
+9. [進階主題](#進階主題)
 
 ---
 
 ## 快速開始
 
-### 前提條件
-
-- Python 3.10+
-- Claude Code CLI 已安裝
-- **不需要** Anthropic API Key（使用 Claude Code 訂閱）
-
-### 5 分鐘快速體驗
+### 5 分鐘上手
 
 ```bash
 # 1. 安裝依賴
-pip install -e ".[dev]"
-pip install claude-agent-sdk>=0.1.0
+pip install -r requirements.txt
 
-# 2. 配置 SDK Agent 模式
-echo "server:
-  mode: sdk_agent
+# 2. 設置 API Key
+export ANTHROPIC_API_KEY=your-api-key-here
 
-models:
-  # 使用 Claude Code 模型
-  default: claude-sonnet-4-5
-
-sdk_agent:
-  max_turns: 20
-  permission_mode: acceptEdits
-  hooks_enabled: true" > config/sdk_agent_config.yaml
-
-# 3. 啟動交互式分析
+# 3. 啟動交互模式
 python run_sdk_agent.py --interactive
 
 # 4. 開始對話
-# > 請分析 src/main/java/com/example/controller/UserController.java
-# > 這個 controller 有哪些依賴？
-# > 生成依賴關係圖
+You: 分析 src/main/java/controllers/UserController.java
+Agent: 正在分析 Controller 文件...
 ```
 
-**恭喜！** 您已經成功使用 SDK Agent 模式 🎉
+### 示例對話
+
+```
+You: 分析整個項目的 Controller 層
+
+Agent: 我將使用 analyze_directory 工具掃描項目...
+[Using tool: analyze_directory]
+
+發現 15 個 Controller 文件：
+- UserController.java ✓
+- OrderController.java ✓
+- ProductController.java ✓
+...
+
+You: 構建這些 Controller 的依賴圖譜
+
+Agent: 正在使用 build_graph 構建知識圖譜...
+[Using tool: build_graph]
+
+圖譜已構建：
+- 節點數：45
+- 邊數：78
+- Controller→Service 依賴：25 條
+
+You: 導出為 D3.js 格式
+
+Agent: 正在導出圖譜...
+[Using tool: export_graph]
+
+已導出到：graphs/project_graph.json
+可以在瀏覽器中查看互動圖譜！
+```
 
 ---
 
-## 三種模式比較
+## 安裝指南
 
-SpringMVC Agent Analyzer 提供三種操作模式，根據您的訂閱選擇：
+### 環境要求
 
-| 特性 | API 模式 | Passive 模式 | **SDK Agent 模式** ⭐ |
-|------|---------|--------------|---------------------|
-| **需要 API Key** | ✅ 是 | ❌ 否 | ❌ 否 |
-| **需要訂閱** | Anthropic API | Claude Code | Claude Code |
-| **交互方式** | MCP 工具調用 | Claude Code + MCP 工具 | **雙向對話** |
-| **自主性** | 批量自動分析 | 用戶驅動分析 | **Agent 自主對話** |
-| **成本** | ~$4.23/專案 | $0（使用訂閱） | **$0（使用訂閱）** |
-| **Hooks 支持** | ❌ | ❌ | **✅ 完整支持** |
-| **動態控制** | ❌ | 有限 | **✅ 運行時調整** |
-| **許可權管理** | ❌ | ❌ | **✅ 細粒度控制** |
-| **上下文管理** | ❌ | ❌ | **✅ 自動壓縮** |
-| **最佳用途** | 批量處理 | 探索性分析 | **交互式深度分析** |
+**必需項目**：
+- Python 3.10 或更高版本
+- pip 包管理器
+- Claude API Key（通過環境變量 `ANTHROPIC_API_KEY` 設置）
 
-### 何時選擇 SDK Agent 模式？
+**可選項目**：
+- Git（用於版本控制）
+- VS Code 或其他 IDE（推薦）
 
-✅ **選擇 SDK Agent 模式，如果您：**
-- 只有 Claude Code 訂閱（沒有 API Key）
-- 需要交互式對話分析代碼
-- 想要 Agent 自主決策分析策略
-- 需要驗證、上下文管理等 Hooks 功能
-- 希望運行時動態調整模型和權限
+### 安裝步驟
 
-❌ **不選擇 SDK Agent 模式，如果您：**
-- 需要批量自動處理大量文件（用 API 模式）
-- 只是偶爾查詢圖數據（用 Passive 模式）
-- 不需要交互式對話
-
----
-
-## 安裝配置
-
-### 1. 安裝 SDK
+#### 1. 克隆項目
 
 ```bash
-# 安裝 Claude Agent SDK
-pip install claude-agent-sdk>=0.1.0
+git clone https://github.com/your-org/springmvc-agent-analyzer.git
+cd springmvc-agent-analyzer
+```
 
-# 或者在 requirements.txt 中添加
-echo "claude-agent-sdk>=0.1.0" >> requirements.txt
+#### 2. 創建虛擬環境
+
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
+```
+
+#### 3. 安裝依賴
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. 創建配置文件
-
-創建 `config/sdk_agent_config.yaml`：
-
-```yaml
-# SDK Agent 模式配置
-server:
-  mode: "sdk_agent"
-
-models:
-  # 使用 Claude Code 的模型
-  default: "claude-sonnet-4-5"
-  haiku: "claude-3-5-haiku-20241022"
-  sonnet: "claude-3-5-sonnet-20241022"
-
-agents:
-  # Agent 配置
-  min_confidence: 0.7
-  structure_validation_penalty: 0.6
-
-sdk_agent:
-  # SDK Agent 特定配置
-  max_turns: 20                    # 最大對話輪數
-  permission_mode: "acceptEdits"   # 權限模式：acceptAll, acceptEdits, rejectAll
-  hooks_enabled: true              # 啟用 Hooks 系統
-
-  hooks:
-    # Hook 配置
-    validation:
-      enabled: true
-      min_confidence: 0.7
-
-    context_manager:
-      enabled: true
-      compact_threshold: 50        # 超過 50 輪壓縮上下文
-
-    cache:
-      enabled: true
-      similarity_threshold: 0.85
-
-  prompts:
-    # 系統提示詞配置
-    system_prompt_path: "prompts/sdk_agent/system_prompt.md"
-    include_examples: true
-
-graph:
-  # 知識圖配置
-  auto_build: true                 # 分析後自動構建圖
-  export_format: "d3"              # 默認導出格式
-
-cache:
-  # 緩存配置
-  cache_dir: ".cache"
-  max_size_mb: 1000
-  ttl_seconds: 86400
+**核心依賴**：
+```txt
+claude-agent-sdk>=0.1.0     # Claude Agent SDK
+aioconsole>=0.7.0           # 非阻塞異步輸入
+anthropic>=0.18.0           # Claude API 客戶端
+networkx>=3.0               # 圖譜構建
+pyyaml>=6.0                 # 配置文件解析
 ```
 
-### 3. 驗證安裝
+#### 4. 設置 API Key
 
 ```bash
-# 驗證 SDK 安裝
-python -c "import claude_agent_sdk; print('SDK installed:', claude_agent_sdk.__version__)"
+# Windows PowerShell
+$env:ANTHROPIC_API_KEY="your-api-key-here"
 
-# 驗證配置
-python run_sdk_agent.py --validate-config
+# Windows CMD
+set ANTHROPIC_API_KEY=your-api-key-here
+
+# Linux/Mac
+export ANTHROPIC_API_KEY=your-api-key-here
+
+# 或創建 .env 文件
+echo "ANTHROPIC_API_KEY=your-api-key-here" > .env
 ```
+
+#### 5. 驗證安裝
+
+```bash
+python -c "from sdk_agent import SpringMVCAnalyzerAgent; print('✓ SDK Agent Mode 安裝成功')"
+```
+
+---
+
+## 配置說明
+
+### 配置文件位置
+
+- **默認配置**: `config/sdk_agent_config.yaml`
+- **自定義配置**: 通過 `--config` 參數指定
+
+### 配置文件結構
+
+```yaml
+# config/sdk_agent_config.yaml
+
+server:
+  mode: "sdk_agent"  # 操作模式
+
+agent:
+  # SDK 啟用狀態
+  sdk_enabled: true
+
+  # System Prompt
+  system_prompt_type: "default"  # default | custom
+  system_prompt_path: null       # 自定義 prompt 路徑
+
+  # Hooks 系統
+  hooks_enabled: true
+
+  # 權限模式
+  # acceptAll: 自動接受所有工具
+  # acceptEdits: 自動接受只讀工具，確認編輯工具
+  # rejectAll: 拒絕所有工具（需手動批准）
+  # custom: 自定義回調
+  permission_mode: "acceptEdits"
+
+  # 對話設置
+  max_turns: 20                    # 最大對話輪數
+  include_partial_messages: true   # 包含部分消息
+
+  # 允許的工具（支持通配符）
+  allowed_tools:
+    - "Read"
+    - "Glob"
+    - "Grep"
+    - "mcp__analyzer__*"  # 所有分析工具
+
+# 日誌配置
+logging:
+  level: "INFO"  # DEBUG | INFO | WARNING | ERROR
+  file: "logs/sdk_agent.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# 緩存配置
+cache:
+  cache_dir: ".cache"
+  max_size_mb: 1000
+  ttl_seconds: 86400  # 24 小時
+
+# 模型配置
+models:
+  haiku: "claude-3-5-haiku-20241022"
+  sonnet: "claude-3-5-sonnet-20241022"
+  opus: "claude-opus-4-20250514"
+  default: "sonnet"  # 默認使用 Sonnet
+
+# Agent 配置
+agents:
+  min_confidence: 0.7  # 最小置信度閾值
+```
+
+### 關鍵配置項說明
+
+#### permission_mode
+
+- **acceptAll**: 適合批量分析，自動執行所有工具
+- **acceptEdits**: 適合交互式分析，只讀工具自動執行，編輯工具需確認
+- **rejectAll**: 適合審計模式，所有工具都需手動批准
+- **custom**: 使用自定義 `can_use_tool` 回調
+
+#### hooks_enabled
+
+啟用後，將激活以下 Hooks：
+- ✅ **ValidationHook** (PreToolUse): 路徑安全驗證
+- ✅ **CacheHook** (PostToolUse): 分析結果緩存
+- ✅ **CleanupHook** (Stop): 會話清理
+- ✅ **ContextManagerHook** (PreCompact): 上下文壓縮
+- ✅ **InputEnhancementHook** (UserPromptSubmit): 輸入增強
 
 ---
 
 ## 使用方式
 
-### 交互式模式
+### 方式 1: 交互式模式
 
-**最常用的方式**，啟動與 Agent 的雙向對話：
-
+**啟動命令**：
 ```bash
-# 啟動交互式模式
 python run_sdk_agent.py --interactive
-
-# 或指定配置文件
-python run_sdk_agent.py --interactive --config config/sdk_agent_config.yaml
 ```
 
-#### 示例對話 1：分析 Controller
+**功能**：
+- 持續對話，支持多輪交互
+- 自動工具選擇和執行
+- 流式響應輸出
+- 上下文保持
+
+**適用場景**：
+- 探索式分析
+- 逐步構建知識圖譜
+- 調試和驗證
+
+**示例對話**：
 
 ```
-You: 請分析 src/main/java/com/example/controller/UserController.java
+🤖 SpringMVC Agent Analyzer - Interactive Mode
+============================================================
+SDK Client: Initialized
+Tools Available: 11
+Max Turns: 20
+============================================================
 
-Agent: 我來分析這個 Controller 文件。
-[調用工具: analyze_controller]
+Type your queries. Press Ctrl+C to exit.
 
-分析結果：
-📄 UserController.java
-- 類名：UserController
-- 基礎路徑：/user
-- 端點：
-  • GET /user/list → listUsers()
-  • POST /user/create → createUser()
-  • GET /user/edit/{id} → editUser(Long id)
-- 依賴服務：
-  • UserService (注入)
-  • RoleService (注入)
-- 返回視圖：
-  • user/list.jsp
-  • user/form.jsp
-  • user/edit.jsp
+You: 列出 src/main/java/controllers 目錄下的所有 Controller
 
-You: 這個 Controller 依賴的 UserService 有什麼方法？
+Agent: 正在使用 analyze_directory 工具掃描...
+[Using tool: mcp__analyzer__analyze_directory]
 
-Agent: 讓我分析 UserService。
-[調用工具: analyze_service]
+找到 8 個 Controller 文件：
+1. UserController.java (125 lines)
+2. OrderController.java (89 lines)
+3. ProductController.java (156 lines)
+...
 
-UserService 提供以下方法：
-1. findAll() → List<User>
-2. findById(Long id) → User
-3. save(User user) → void
-4. delete(Long id) → void
-5. 事務管理：@Transactional 在 save/delete 方法
+You: 詳細分析第一個 Controller
 
-You: 如果我修改 UserService.save() 方法，會影響哪些組件？
+Agent: 正在分析 UserController.java...
+[Using tool: mcp__analyzer__analyze_controller]
 
-Agent: 讓我進行影響分析。
-[調用工具: analyze_impact]
+Controller Analysis: UserController
+============================================================
+Package: com.example.controllers
+Base URL: /api/users
+Methods: 7
+Dependencies: 2 (UserService, ValidationService)
+Confidence: 95.3%
+Model Used: claude-3-5-sonnet-20241022
+Cost: $0.0042
 
-影響分析結果：
-🔍 修改 UserService.save() 會影響：
+Methods:
+  - getUsers() → GET /api/users
+  - getUserById() → GET /api/users/{id}
+  - createUser() → POST /api/users
+  - updateUser() → PUT /api/users/{id}
+  - deleteUser() → DELETE /api/users/{id}
+  - searchUsers() → GET /api/users/search
+  - getUserProfile() → GET /api/users/{id}/profile
 
-直接影響：
-- UserController.createUser() - 調用 save()
-- UserController.editUser() - 調用 save()
+You: 這個 Controller 依賴的 Service 在哪裡？
 
-間接影響：
-- user/form.jsp - 由 createUser() 渲染
-- user/edit.jsp - 由 editUser() 渲染
+Agent: 正在查詢依賴關係...
+[Using tool: mcp__analyzer__find_dependencies]
 
-建議：
-- 更新相關單元測試
-- 檢查事務邊界是否需要調整
-- 驗證表單驗證邏輯
+UserController 依賴的 Service：
+1. UserService
+   - 位置: src/main/java/services/UserService.java
+   - 類型: @Service
+   - 方法數: 12
+
+2. ValidationService
+   - 位置: src/main/java/services/ValidationService.java
+   - 類型: @Component
+   - 方法數: 5
+
+You: 構建完整的依賴圖譜
+
+Agent: 正在構建知識圖譜...
+[Using tool: mcp__analyzer__build_graph]
+
+圖譜構建完成！
+節點數: 35
+邊數: 58
+層級: 4
+
+圖譜包含：
+- 8 個 Controller
+- 15 個 Service
+- 8 個 Mapper
+- 4 個 JSP
+
+You: 退出
+
+Agent: 正在清理資源...
+[Stop Hook: Cleanup]
+
+👋 再見！
 ```
 
-#### 示例對話 2：探索性分析
+### 方式 2: 批量分析模式
 
-```
-You: 這個專案有多少個 Controller？
-
-Agent: [調用工具: list_files]
-[調用工具: analyze_directory]
-
-專案共有 8 個 Controller：
-1. UserController - 用戶管理
-2. RoleController - 角色管理
-3. AuthController - 認證
-4. ProductController - 產品管理
-5. OrderController - 訂單管理
-6. ReportController - 報表
-7. ApiController - API 接口
-8. AdminController - 後台管理
-
-You: 哪個 Controller 最複雜？
-
-Agent: 根據複雜度分析（端點數量、依賴數量、邏輯複雜度）：
-
-最複雜的是 OrderController：
-- 12 個端點
-- 5 個服務依賴
-- 3 個外部 API 調用
-- 事務管理邏輯複雜
-
-建議優先重構此 Controller。
-
-You: 生成 OrderController 的依賴關係圖
-
-Agent: [調用工具: build_graph]
-[調用工具: export_graph]
-
-依賴關係圖已生成：output/order_controller_dependencies.html
-
-主要依賴鏈：
-OrderController → OrderService → OrderRepository
-              → PaymentService → PaymentGatewayAPI
-              → ProductService → ProductRepository
-              → UserService → UserRepository
-```
-
-### 批量分析模式
-
-**適合一次性分析整個專案**：
-
-```bash
-# 分析專案並生成報告
-python run_sdk_agent.py \
-  --analyze-project src/main/java \
-  --output-format markdown \
-  --export-graph output/graph.html
-```
-
-#### 輸出示例
-
-```markdown
-# SpringMVC 專案分析報告
-
-## 概覽
-- 總文件數：156
-- Controllers：8
-- Services：15
-- Repositories：12
-- JSP 視圖：43
-- MyBatis Mappers：12
-
-## 架構分析
-- 三層架構：Controller → Service → Repository
-- 依賴注入：Spring @Autowired
-- 事務管理：聲明式事務
-- 視圖技術：JSP + JSTL
-
-## 關鍵發現
-1. OrderController 複雜度過高（建議重構）
-2. 3 個 Service 缺少事務管理
-3. 5 個 JSP 頁面包含業務邏輯（建議提取）
-4. 2 個 SQL 查詢存在 N+1 問題
-
-## 依賴關係圖
-[圖形已導出到 output/graph.html]
-```
-
-### 編程 API
-
-**在 Python 代碼中使用 SDK Agent**：
+**使用 Python API**：
 
 ```python
 import asyncio
-from sdk_agent.client import SpringMVCAnalyzerAgent
+from sdk_agent import SpringMVCAnalyzerAgent
 
 async def analyze_project():
-    # 初始化 Agent
+    # 創建 agent
     agent = SpringMVCAnalyzerAgent(
         config_path="config/sdk_agent_config.yaml",
-        hooks_enabled=True,
-        permission_mode="acceptEdits",
-        max_turns=20
+        hooks_enabled=True
     )
 
-    # 方式 1: 批量分析
+    # 批量分析項目
     result = await agent.analyze_project(
         project_path="src/main/java",
-        output_format="json"
+        output_format="markdown"
     )
 
-    print(f"分析了 {result['total_files']} 個文件")
-    print(f"發現 {result['total_endpoints']} 個端點")
+    # 處理結果
+    print(result["analysis"])
 
-    # 方式 2: 單個文件分析
-    from sdk_agent.tools.controller_tools import analyze_controller
-
-    controller_result = await analyze_controller({
-        "file_path": "src/main/java/com/example/UserController.java"
-    })
-
-    print(f"Controller: {controller_result['class_name']}")
-    print(f"端點數量: {len(controller_result['endpoints'])}")
-
-    # 方式 3: 圖查詢
-    from sdk_agent.tools.graph_tools import query_graph
-
-    stats = await query_graph({"query_type": "stats"})
-    print(f"圖節點數: {stats['num_nodes']}")
-    print(f"圖邊數: {stats['num_edges']}")
+    # 保存到文件
+    with open("analysis_report.md", "w", encoding="utf-8") as f:
+        f.write(result["analysis"])
 
 # 運行
 asyncio.run(analyze_project())
 ```
 
----
-
-## 常見使用場景
-
-### 場景 1：代碼理解與文檔生成
-
-**目標**：理解遺留代碼並生成文檔
-
+**命令行方式**：
 ```bash
-python run_sdk_agent.py --interactive
+python run_sdk_agent.py --analyze src/main/java --output report.md
 ```
 
-```
-You: 分析 src/main/java/com/legacy/order/ 目錄下的所有代碼，
-     生成詳細的技術文檔，包括：
-     1. 架構設計
-     2. 數據流
-     3. API 端點
-     4. 依賴關係
+### 方式 3: 集成到自定義腳本
 
-Agent: [執行分析...]
+```python
+from sdk_agent import SpringMVCAnalyzerAgent
 
-已生成文檔：docs/legacy_order_module.md
+async def custom_analysis():
+    agent = SpringMVCAnalyzerAgent()
 
-主要發現：
-- 訂單模塊使用經典三層架構
-- 包含 5 個主要業務流程
-- 依賴 PaymentService 和 InventoryService
-- 數據流：Controller → OrderService → OrderRepository → Oracle DB
+    # 自定義分析流程
+    await agent.client.__aenter__()
+    try:
+        # Step 1: 分析特定文件
+        await agent.client.query(
+            "分析 src/main/java/controllers/UserController.java"
+        )
+        async for msg in agent.client.receive_response():
+            print(msg, end="")
 
-詳見文檔獲取完整架構圖和 API 說明。
-```
+        # Step 2: 查詢依賴
+        await agent.client.query(
+            "找出 UserController 的所有依賴"
+        )
+        async for msg in agent.client.receive_response():
+            print(msg, end="")
 
-### 場景 2：重構影響分析
-
-**目標**：評估重構的影響範圍
-
-```
-You: 我計劃將 UserService 拆分為 UserQueryService 和 UserCommandService，
-     請分析這個改動會影響哪些地方？
-
-Agent: [調用 find_dependencies 和 analyze_impact]
-
-影響分析：
-
-直接影響（需要修改）：
-1. UserController - 7 處注入點
-2. AdminController - 3 處注入點
-3. AuthService - 1 處依賴
-4. AuditService - 2 處依賴
-
-間接影響（可能需要調整）：
-1. 單元測試：UserServiceTest
-2. 配置：applicationContext.xml
-3. 文檔：API_DESIGN.md
-
-風險評估：
-- 中等風險：需要大量代碼修改
-- 建議：先創建適配器層，逐步遷移
-
-遷移步驟建議：
-1. 創建新的 Service 接口
-2. 實現適配器層
-3. 逐個 Controller 遷移
-4. 更新測試
-5. 刪除舊代碼
-```
-
-### 場景 3：性能瓶頸識別
-
-**目標**：找出潛在的性能問題
-
-```
-You: 分析專案中的 MyBatis Mapper，找出可能的性能瓶頸
-
-Agent: [調用 analyze_mapper 工具]
-
-發現 5 個性能問題：
-
-🔴 嚴重問題：
-1. UserMapper.findAll() - N+1 查詢問題
-   - 位置：UserMapper.xml:45
-   - 問題：在循環中查詢角色信息
-   - 建議：使用 JOIN 或批量查詢
-
-2. OrderMapper.getOrderDetails() - 缺少索引
-   - 位置：OrderMapper.xml:78
-   - 問題：WHERE 條件字段無索引
-   - 建議：在 order_date 字段添加索引
-
-🟡 中等問題：
-3. ProductMapper.search() - 全表掃描
-   - 使用 LIKE '%keyword%' 導致索引失效
-   - 建議：使用全文搜索或優化查詢
-
-⚡ 優化建議：
-- 啟用 MyBatis 二級緩存
-- 使用批量操作代替循環
-- 添加數據庫索引
-```
-
-### 場景 4：新功能開發指導
-
-**目標**：了解如何添加新功能
-
-```
-You: 我要添加一個新的 "訂單導出" 功能，請告訴我需要：
-     1. 創建哪些文件
-     2. 修改哪些現有代碼
-     3. 需要注意什麼
-
-Agent: [分析現有架構]
-
-新功能實現指南：
-
-📁 需要創建的文件：
-1. OrderExportController.java
-   - 位置：src/main/java/com/example/controller/
-   - 端點：GET /order/export
-
-2. OrderExportService.java
-   - 位置：src/main/java/com/example/service/
-   - 方法：exportToExcel(), exportToPDF()
-
-3. OrderExportMapper.xml
-   - 位置：src/main/resources/mapper/
-   - SQL：查詢導出數據
-
-4. order_export.jsp
-   - 位置：src/main/webapp/WEB-INF/views/order/
-   - UI：導出選項界面
-
-🔧 需要修改的文件：
-1. OrderController.java
-   - 添加導出按鈕鏈接
-
-2. spring-mvc.xml
-   - 註冊新的 Controller 和 Service
-
-3. order/list.jsp
-   - 添加 "導出" 按鈕
-
-⚠️ 注意事項：
-1. 大量數據導出建議使用異步處理
-2. 添加分頁或限制導出數量
-3. 考慮權限控制（參考現有 AuthController）
-4. 導出格式：參考 ReportController 的實現
-5. 錯誤處理：統一使用 GlobalExceptionHandler
-
-📝 實現步驟：
-1. 創建基本 Controller 和端點
-2. 實現 Service 層業務邏輯
-3. 編寫 Mapper SQL 查詢
-4. 創建 JSP 視圖
-5. 添加單元測試
-6. 集成測試
-
-是否需要我生成代碼模板？
-```
-
-### 場景 5：技術債務評估
-
-**目標**：識別和量化技術債務
-
-```
-You: 評估整個專案的技術債務，按優先級排序
-
-Agent: [全面分析代碼庫]
-
-技術債務報告：
-
-📊 總體評分：6.5/10（中等債務）
-
-🔴 高優先級（建議立即處理）：
-1. OrderController 複雜度過高
-   - 圈複雜度：45（建議 <15）
-   - 影響範圍：核心業務流程
-   - 重構工作量：5 天
-
-2. 缺少事務管理
-   - 影響：3 個 Service 類
-   - 風險：數據一致性問題
-   - 修復工作量：2 天
-
-🟡 中優先級（近期處理）：
-3. JSP 中混雜業務邏輯
-   - 影響：8 個 JSP 文件
-   - 建議：提取到 Service 層
-   - 重構工作量：3 天
-
-4. SQL 注入風險
-   - 影響：2 個動態 SQL
-   - 風險：安全漏洞
-   - 修復工作量：1 天
-
-🟢 低優先級（有空時處理）：
-5. 過時的依賴版本
-6. 缺少 JavaDoc 註釋
-7. 測試覆蓋率不足（45%）
-
-💰 總估算工作量：15 人天
-
-📈 建議處理順序：
-Week 1: 修復事務管理和 SQL 注入（高風險）
-Week 2: 重構 OrderController（高影響）
-Week 3: 提取 JSP 業務邏輯（中等影響）
+        # Step 3: 導出圖譜
+        await agent.client.query(
+            "導出依賴圖譜為 D3.js 格式"
+        )
+        async for msg in agent.client.receive_response():
+            print(msg, end="")
+    finally:
+        await agent.client.__aexit__(None, None, None)
 ```
 
 ---
 
-## 進階功能
+## 工具參考
 
-### 1. Hooks 系統
+SDK Agent Mode 提供 11 個工具，分為 3 類：
 
-SDK Agent 支持 5 種 Hooks，用於驗證、優化、監控：
+### 分析工具 (6 個)
 
-#### PreToolUse Hook - 工具調用前驗證
+#### 1. analyze_controller
+
+分析 Spring MVC Controller 文件。
+
+**輸入**：
+```json
+{
+  "file_path": "src/main/java/controllers/UserController.java",
+  "include_details": true
+}
+```
+
+**輸出**：
+```
+Controller Analysis: UserController
+============================================================
+Package: com.example.controllers
+Base URL: /api/users
+Methods: 7
+Dependencies: 2
+Confidence: 95.3%
+...
+```
+
+#### 2. analyze_jsp
+
+分析 JSP 視圖文件。
+
+**輸入**：
+```json
+{
+  "file_path": "src/main/webapp/WEB-INF/views/user-list.jsp"
+}
+```
+
+#### 3. analyze_service
+
+分析 Spring Service 層。
+
+**輸入**：
+```json
+{
+  "file_path": "src/main/java/services/UserService.java"
+}
+```
+
+#### 4. analyze_mapper
+
+分析 MyBatis Mapper XML。
+
+**輸入**：
+```json
+{
+  "file_path": "src/main/resources/mappers/UserMapper.xml"
+}
+```
+
+#### 5. analyze_procedure
+
+分析 Oracle 存儲過程。
+
+**輸入**：
+```json
+{
+  "file_path": "src/main/sql/procedures/user_management.prc"
+}
+```
+
+#### 6. analyze_directory
+
+批量分析目錄。
+
+**輸入**：
+```json
+{
+  "directory_path": "src/main/java/controllers",
+  "pattern": "**/*.java",
+  "recursive": true
+}
+```
+
+**輸出**：
+```
+Directory Analysis Complete
+============================================================
+Total Files Found: 15
+Successfully Analyzed: 14
+Failed: 1
+Total Cost: $0.0623
+```
+
+### 圖譜工具 (2 個)
+
+#### 7. build_graph
+
+從分析結果構建知識圖譜。
+
+**自動觸發**: 分析工具執行後自動累積數據
+
+**手動觸發**：
+```json
+{
+  "force_rebuild": false
+}
+```
+
+#### 8. export_graph
+
+導出圖譜為各種格式。
+
+**輸入**：
+```json
+{
+  "output_path": "graphs/project_graph.json",
+  "format": "d3",  // d3 | cytoscape | dot | graphml
+  "include_metadata": true
+}
+```
+
+**支持格式**：
+- **d3**: D3.js 可視化（JSON）
+- **cytoscape**: Cytoscape.js（JSON）
+- **dot**: Graphviz DOT 格式
+- **graphml**: GraphML XML 格式
+
+### 查詢工具 (3 個)
+
+#### 9. query_graph
+
+查詢圖譜統計和信息。
+
+**輸入**：
+```json
+{
+  "query_type": "stats"  // stats | nodes | edges
+}
+```
+
+**輸出**：
+```
+Graph Statistics:
+- Nodes: 45
+- Edges: 78
+- Avg Degree: 3.47
+- Density: 0.082
+```
+
+#### 10. find_dependencies
+
+查找依賴關係。
+
+**輸入**：
+```json
+{
+  "node_id": "UserController",
+  "depth": 2,  // 依賴深度
+  "direction": "outgoing"  // outgoing | incoming | both
+}
+```
+
+**輸出**：
+```
+UserController 的依賴 (深度 2):
+1. UserService (直接依賴)
+   - UserRepository (間接依賴)
+   - CacheService (間接依賴)
+2. ValidationService (直接依賴)
+   - ValidatorFactory (間接依賴)
+```
+
+#### 11. analyze_impact
+
+影響分析（找出誰依賴於目標）。
+
+**輸入**：
+```json
+{
+  "node_id": "UserService",
+  "depth": 3
+}
+```
+
+**輸出**：
+```
+修改 UserService 將影響:
+1. UserController (1 hop)
+2. OrderController (2 hops via OrderService)
+3. ReportGenerator (3 hops)
+
+總計受影響組件: 12
+建議: 需要全面回歸測試
+```
+
+---
+
+## Hook 系統
+
+### 可用 Hooks
+
+SDK Agent Mode 提供 5 個 Hook 事件點：
+
+#### 1. ValidationHook (PreToolUse)
+
+**觸發時機**: 工具執行前
+
+**功能**：
+- ✅ 路徑遍歷安全檢查
+- ✅ 敏感目錄保護
+- ✅ 文件存在性驗證
+
+**示例**：
 
 ```python
-from sdk_agent.hooks.validation import ValidationHook
+# 嘗試訪問危險路徑
+You: 分析 ../../../etc/passwd
 
-# 自動啟用（配置文件中設置）
-# hooks:
-#   validation:
-#     enabled: true
-#     min_confidence: 0.7
-
-# 效果：分析結果信心度 < 0.7 時自動升級模型
+Agent: ❌ 安全錯誤
+[ValidationHook] 檢測到危險路徑模式: ../
+路徑: ../../../etc/passwd
+請使用工作區內的安全路徑。
 ```
 
-```
-Agent: [嘗試使用 analyze_controller]
-Hook: 檢測到複雜代碼，信心度 0.65 < 0.7
-Hook: 自動升級模型：Haiku → Sonnet
-Agent: [使用 Sonnet 重新分析]
-Result: 分析完成，信心度 0.92 ✓
-```
+#### 2. CacheHook (PostToolUse)
 
-#### PostToolUse Hook - 工具調用後處理
+**觸發時機**: 工具執行後
+
+**功能**：
+- ✅ 分析結果緩存
+- ✅ 語義相似度匹配
+- ✅ 自動緩存失效
+
+**緩存命中示例**：
 
 ```python
-# 自動清理臨時結果
-# hooks:
-#   cleanup:
-#     enabled: true
-#     keep_recent: 10
+You: 分析 src/main/java/controllers/UserController.java
 
-# 效果：自動刪除舊的分析結果，保持存儲清潔
+Agent: ✓ 使用緩存結果 (97% 相似度)
+上次分析時間: 2025-10-06 14:32:15
+緩存命中，節省成本: $0.0042
 ```
 
-#### UserPromptSubmit Hook - 用戶輸入預處理
+#### 3. CleanupHook (Stop)
+
+**觸發時機**: 會話停止時
+
+**功能**：
+- ✅ 保存會話狀態
+- ✅ 清理臨時文件
+- ✅ 記錄統計信息
+
+#### 4. ContextManagerHook (PreCompact)
+
+**觸發時機**: 上下文壓縮前
+
+**功能**：
+- ✅ 智能保留重要消息
+- ✅ 壓縮歷史對話
+- ✅ 優化 token 使用
+
+#### 5. InputEnhancementHook (UserPromptSubmit)
+
+**觸發時機**: 用戶提交輸入時
+
+**功能**：
+- ✅ 自動添加項目上下文
+- ✅ 補充相關信息
+- ✅ 優化查詢表達
+
+### 自定義 Hook
+
+創建自定義 Hook：
 
 ```python
-# 自動展開路徑和添加上下文
-# hooks:
-#   context_expansion:
-#     enabled: true
+from typing import Dict, Any, Optional
 
-# 效果：
-# 用戶輸入："分析 UserController"
-# 展開後："分析 src/main/java/com/example/controller/UserController.java，
-#         請考慮其依賴的 UserService 和相關 JSP 視圖"
-```
+class CustomHook:
+    """自定義 Hook 示例"""
 
-#### Stop Hook - 對話結束處理
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.enabled = config.get("enabled", True)
 
-```python
-# 自動生成摘要和保存會話
-# hooks:
-#   session_save:
-#     enabled: true
-#     save_path: "sessions/"
+    async def __call__(
+        self,
+        tool_name: str,
+        tool_input: Dict[str, Any],
+        tool_output: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Hook 執行邏輯"""
 
-# 效果：對話結束時自動保存完整會話記錄
-```
+        if not self.enabled:
+            return {"allowed": True}
 
-#### PreCompact Hook - 上下文壓縮前處理
+        # 自定義邏輯
+        if tool_name == "analyze_controller":
+            # 例如：記錄分析次數
+            self._log_usage(tool_name)
 
-```python
-# 智能選擇保留的消息
-# hooks:
-#   context_manager:
-#     enabled: true
-#     compact_threshold: 50
+        return {"allowed": True}
 
-# 效果：超過 50 輪對話時，自動壓縮歷史消息，保留關鍵信息
-```
+    def _log_usage(self, tool_name: str):
+        """記錄工具使用"""
+        # 實現記錄邏輯
+        pass
 
-### 2. 動態控制
-
-運行時調整 Agent 行為：
-
-```python
-from sdk_agent.client import SpringMVCAnalyzerAgent
+# 註冊 Hook
+from sdk_agent import SpringMVCAnalyzerAgent
 
 agent = SpringMVCAnalyzerAgent()
-
-# 動態切換模型
-await agent.set_model("claude-opus-4")  # 處理複雜任務時升級
-
-# 動態調整權限
-await agent.set_permission_mode("acceptAll")  # 批量處理時全部接受
-
-# 中斷當前操作
-await agent.interrupt()  # 停止長時間運行的分析
+agent.hooks.append(CustomHook({"enabled": True}))
 ```
 
-### 3. 權限管理
+---
 
-細粒度控制工具使用權限：
+## 最佳實踐
+
+### 1. 批量分析優化
+
+**使用 analyze_directory 而非多次單文件分析**：
+
+✅ **好**：
+```python
+You: 分析 src/main/java/controllers 目錄下所有 Controller
+```
+
+❌ **不好**：
+```python
+You: 分析 UserController.java
+You: 分析 OrderController.java
+You: 分析 ProductController.java
+...
+```
+
+### 2. 逐步構建圖譜
+
+**先分析，再構建圖譜，最後查詢**：
 
 ```python
-# config/sdk_agent_config.yaml
-sdk_agent:
-  permission_mode: "custom"
+# Step 1: 分析組件
+You: 分析 controllers 目錄
 
-  permissions:
-    # 讀取工具：總是允許
-    analyze_controller: "allow"
-    analyze_service: "allow"
-    query_graph: "allow"
+# Step 2: 自動構建圖譜
+# (build_graph 在分析後自動觸發)
 
-    # 修改工具：需要確認
-    build_graph: "confirm"
-    export_graph: "confirm"
-
-    # 危險操作：禁止
-    delete_cache: "deny"
+# Step 3: 查詢和導出
+You: 查詢圖譜統計
+You: 導出為 D3.js 格式
 ```
 
-效果：
+### 3. 利用緩存
 
-```
-Agent: 我需要調用 export_graph 導出圖數據
-System: [權限檢查：confirm]
-System: 確認導出圖到 output/graph.html？(y/n)
-You: y
-Agent: [執行導出]
-```
-
-### 4. 緩存策略
-
-語義緩存避免重複分析：
+**重複查詢相同文件時，自動使用緩存**：
 
 ```python
-# 配置語義緩存
-# cache:
-#   enabled: true
-#   similarity_threshold: 0.85
-#   vector_store: "faiss"
+# 第一次分析 - 調用 API
+You: 分析 UserController.java
+Agent: [調用 Claude API] 分析完成，耗時 2.3s
 
-# 效果：
-# 第一次分析 UserController.java → 調用 LLM，耗時 2s
-# 修改註釋後再次分析 → 命中緩存（相似度 0.92），耗時 0.1s
+# 第二次分析 - 使用緩存
+You: 分析 UserController.java
+Agent: [緩存命中] 分析完成，耗時 0.1s
+```
+
+### 4. 權限模式選擇
+
+**根據場景選擇合適的權限模式**：
+
+| 場景 | 推薦模式 | 原因 |
+|-----|---------|------|
+| 批量分析 | acceptAll | 無需手動確認，提高效率 |
+| 交互式探索 | acceptEdits | 只讀自動執行，編輯需確認 |
+| 審計模式 | rejectAll | 所有操作需手動批准 |
+
+### 5. 錯誤處理
+
+**優雅處理文件不存在等錯誤**：
+
+```python
+You: 分析 nonexistent.java
+
+Agent: ❌ 文件未找到: nonexistent.java
+建議: 請檢查文件路徑是否正確
+
+You: 使用 analyze_directory 查找所有 Controller
+
+Agent: ✓ 找到 8 個 Controller 文件
+```
+
+### 6. 性能優化
+
+**使用模式匹配過濾文件**：
+
+```python
+# 只分析 Controller
+You: 分析 src/main/java 目錄，模式 **/*Controller.java
+
+# 只分析 Service
+You: 分析 src/main/java 目錄，模式 **/*Service.java
 ```
 
 ---
 
 ## 故障排除
 
-### 問題 1：SDK Agent 啟動失敗
+### 常見問題
 
-**症狀**：
-```
-Error: Failed to initialize SpringMVCAnalyzerAgent
-```
+#### Q1: 提示 "SDK not installed"
 
-**解決方案**：
+**原因**: Claude Agent SDK 未安裝
 
-1. 檢查 Claude Code CLI 安裝：
+**解決**：
 ```bash
-claude --version
+pip install claude-agent-sdk>=0.1.0
 ```
 
-2. 檢查 SDK 安裝：
+#### Q2: 提示 "API Key not found"
+
+**原因**: 環境變量未設置
+
+**解決**：
 ```bash
-pip show claude-agent-sdk
+# Windows
+set ANTHROPIC_API_KEY=your-key-here
+
+# Linux/Mac
+export ANTHROPIC_API_KEY=your-key-here
 ```
 
-3. 驗證配置文件：
+#### Q3: 交互模式卡住不響應
+
+**原因**: 異步 I/O 阻塞
+
+**解決**: 確保安裝了 aioconsole
 ```bash
-python run_sdk_agent.py --validate-config
+pip install aioconsole>=0.7.0
 ```
 
-4. 查看詳細錯誤：
-```bash
-python run_sdk_agent.py --interactive --verbose
+#### Q4: Hook 不執行
+
+**原因**: hooks_enabled 未啟用
+
+**解決**: 在配置文件中設置
+```yaml
+agent:
+  hooks_enabled: true
 ```
 
-### 問題 2：工具調用失敗
+#### Q5: 工具調用失敗
 
-**症狀**：
-```
-Error: Tool 'analyze_controller' execution failed
-```
+**原因**: 權限模式設為 rejectAll
 
-**解決方案**：
-
-1. 檢查文件路徑是否正確：
-```python
-# 使用絕對路徑
-file_path = "/absolute/path/to/UserController.java"
-
-# 或者當前目錄相對路徑
-file_path = "src/main/java/com/example/UserController.java"
+**解決**: 修改權限模式
+```yaml
+agent:
+  permission_mode: "acceptEdits"
 ```
 
-2. 檢查文件是否可讀：
-```bash
-ls -la src/main/java/com/example/UserController.java
-```
+### 調試技巧
 
-3. 查看工具日誌：
-```bash
-tail -f logs/sdk_agent.log
-```
+#### 啟用 DEBUG 日誌
 
-### 問題 3：分析結果不準確
-
-**症狀**：分析結果缺少信息或包含錯誤
-
-**解決方案**：
-
-1. 檢查信心度：
-```python
-result = await analyze_controller({"file_path": "..."})
-if result["confidence"] < 0.7:
-    print("信心度過低，建議使用更強大的模型")
-```
-
-2. 啟用 Validation Hook：
 ```yaml
 # config/sdk_agent_config.yaml
-hooks:
-  validation:
-    enabled: true
-    min_confidence: 0.8  # 提高閾值
+logging:
+  level: "DEBUG"
 ```
 
-3. 手動升級模型：
+#### 查看詳細錯誤
+
 ```python
-await agent.set_model("claude-opus-4")  # 使用最強模型
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+from sdk_agent import SpringMVCAnalyzerAgent
+# 錯誤將打印到 stderr
 ```
 
-### 問題 4：上下文過長導致錯誤
+#### 測試工具連接
 
-**症狀**：
-```
-Error: Context length exceeded
-```
-
-**解決方案**：
-
-1. 啟用自動壓縮：
-```yaml
-hooks:
-  context_manager:
-    enabled: true
-    compact_threshold: 30  # 降低閾值
-```
-
-2. 手動清理上下文：
 ```python
-await agent.compact_context()
-```
+from sdk_agent import SpringMVCAnalyzerAgent
 
-3. 拆分大型文件分析：
-```python
-# 不要一次分析整個目錄
-# 分批處理
-for subdir in ["controller", "service", "repository"]:
-    await agent.analyze_project(f"src/main/java/com/example/{subdir}")
-```
-
-### 問題 5：Hooks 不生效
-
-**症狀**：配置的 Hooks 沒有執行
-
-**解決方案**：
-
-1. 確認 Hooks 已啟用：
-```yaml
-sdk_agent:
-  hooks_enabled: true  # 全局開關
-
-  hooks:
-    validation:
-      enabled: true    # 具體 Hook 開關
-```
-
-2. 檢查 Hook 日誌：
-```bash
-grep "Hook" logs/sdk_agent.log
-```
-
-3. 驗證 Hook 註冊：
-```python
-# 在代碼中檢查
 agent = SpringMVCAnalyzerAgent()
-print(agent.hooks)  # 應該顯示已註冊的 Hooks
+tools = agent.get_tools()
+print(f"已註冊 {len(tools)} 個工具")
 ```
 
 ---
 
-## FAQ
+## 進階主題
 
-### Q1: SDK Agent 模式和 API 模式有什麼區別？
+### 動態切換模型
 
-**A**: 主要區別：
+```python
+from sdk_agent import SpringMVCAnalyzerAgent
 
-| 方面 | SDK Agent 模式 | API 模式 |
-|------|---------------|---------|
-| 交互方式 | 雙向對話 | 單向工具調用 |
-| 自主性 | Agent 自主決策 | 用戶驅動 |
-| API Key | 不需要 | 需要 |
-| 成本 | $0（使用訂閱） | ~$4.23/專案 |
-| Hooks | 支持 | 不支持 |
+agent = SpringMVCAnalyzerAgent()
 
-**建議**：
-- 探索性分析、交互式使用 → SDK Agent
-- 批量自動處理 → API 模式
+# 運行時切換到 Haiku（更快更便宜）
+await agent.set_model("haiku")
 
-### Q2: 可以同時使用多種模式嗎？
-
-**A**: 可以！三種模式共享底層組件：
-
-```bash
-# 使用 SDK Agent 進行探索性分析
-python run_sdk_agent.py --interactive
-
-# 使用 API 模式批量處理
-python run_mcp_server.py --mode api --analyze-all
-
-# 使用 Passive 模式在 Claude Code 中查詢
-# (通過 MCP 工具)
+# 運行時切換到 Opus（更強大）
+await agent.set_model("opus")
 ```
 
-### Q3: 如何自定義 System Prompt？
+### 自定義 System Prompt
 
-**A**: 兩種方式：
-
-方式 1：修改配置文件
 ```yaml
 # config/sdk_agent_config.yaml
-sdk_agent:
-  prompts:
-    system_prompt_path: "prompts/custom_system_prompt.md"
+agent:
+  system_prompt_type: "custom"
+  system_prompt_path: "prompts/custom_system_prompt.txt"
 ```
 
-方式 2：編程方式
-```python
-custom_prompt = """
-你是 Spring MVC 專家，專注於：
-1. 代碼質量分析
-2. 性能優化建議
-3. 安全漏洞檢測
-"""
+**prompts/custom_system_prompt.txt**:
+```
+You are a senior Spring MVC architect.
 
-agent = SpringMVCAnalyzerAgent(system_prompt=custom_prompt)
+When analyzing code:
+1. Focus on architectural patterns
+2. Identify anti-patterns
+3. Suggest best practices
+4. Consider performance implications
+
+Use available tools to analyze:
+- Controllers (@Controller, @RestController)
+- Services (@Service)
+- Repositories (@Repository)
+- Mappers (MyBatis XML)
 ```
 
-### Q4: 如何添加自定義工具？
-
-**A**: 使用 `@tool` 裝飾器：
-
-```python
-# sdk_agent/tools/custom_tools.py
-from claude_agent_sdk import tool
-from typing import Dict, Any
-
-@tool(
-    name="analyze_security",
-    description="分析代碼安全漏洞",
-    input_schema={
-        "file_path": {
-            "type": "string",
-            "description": "要分析的文件路徑"
-        }
-    }
-)
-async def analyze_security(args: Dict[str, Any]) -> Dict[str, Any]:
-    file_path = args["file_path"]
-
-    # 自定義分析邏輯
-    vulnerabilities = []
-
-    with open(file_path) as f:
-        content = f.read()
-
-        # 檢查 SQL 注入
-        if "Statement" in content and "+" in content:
-            vulnerabilities.append({
-                "type": "SQL Injection",
-                "severity": "high",
-                "description": "可能的 SQL 注入風險"
-            })
-
-    return {
-        "file_path": file_path,
-        "vulnerabilities": vulnerabilities,
-        "total_issues": len(vulnerabilities)
-    }
-
-# 註冊到 Agent
-from sdk_agent.client import SpringMVCAnalyzerAgent
-agent = SpringMVCAnalyzerAgent()
-# 工具會自動註冊
-```
-
-### Q5: 分析大型專案時如何優化性能？
-
-**A**: 多種優化策略：
-
-1. **啟用緩存**：
-```yaml
-cache:
-  enabled: true
-  similarity_threshold: 0.85
-```
-
-2. **並行處理**：
-```python
-import asyncio
-
-files = ["Controller1.java", "Controller2.java", ...]
-
-# 並行分析
-results = await asyncio.gather(
-    *[analyze_controller({"file_path": f}) for f in files]
-)
-```
-
-3. **增量分析**：
-```python
-# 只分析修改的文件
-changed_files = get_git_changed_files()
-for file in changed_files:
-    await analyze_file(file)
-```
-
-4. **分批處理**：
-```python
-# 每次處理 10 個文件
-batch_size = 10
-for i in range(0, len(files), batch_size):
-    batch = files[i:i+batch_size]
-    await process_batch(batch)
-```
-
-### Q6: 如何導出分析結果？
-
-**A**: 多種導出格式：
-
-```python
-# 1. Markdown 報告
-result = await agent.analyze_project(
-    project_path="src/main/java",
-    output_format="markdown"
-)
-# 保存到 output/report.md
-
-# 2. JSON 數據
-result = await agent.analyze_project(
-    project_path="src/main/java",
-    output_format="json"
-)
-# 保存到 output/analysis.json
-
-# 3. 知識圖可視化
-from sdk_agent.tools.graph_tools import export_graph
-
-await export_graph({
-    "output_path": "output/graph.html",
-    "format": "d3"
-})
-# 在瀏覽器打開 output/graph.html
-
-# 4. GraphML（用於 Neo4j、Gephi 等）
-await export_graph({
-    "output_path": "output/graph.graphml",
-    "format": "graphml"
-})
-```
-
-### Q7: 出現 "信心度過低" 警告怎麼辦？
-
-**A**: 三種處理方式：
-
-1. **自動升級模型**（推薦）：
-```yaml
-hooks:
-  validation:
-    enabled: true
-    min_confidence: 0.7
-# Hook 會自動升級模型
-```
-
-2. **手動切換模型**：
-```python
-# 使用更強大的模型
-await agent.set_model("claude-opus-4")
-result = await analyze_controller({"file_path": "..."})
-```
-
-3. **提供更多上下文**：
-```python
-# 分析時包含相關文件
-result = await analyze_controller({
-    "file_path": "UserController.java",
-    "include_dependencies": True,  # 包含依賴的 Service
-    "include_views": True          # 包含相關 JSP
-})
-```
-
-### Q8: 如何集成到 CI/CD 流程？
-
-**A**: 示例集成：
+### 集成 CI/CD
 
 ```yaml
-# .github/workflows/code-analysis.yml
-name: SpringMVC Analysis
+# .github/workflows/analyze.yml
+name: Spring MVC Analysis
 
-on: [pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
   analyze:
@@ -1118,58 +978,42 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: |
-          pip install -e .
-          pip install claude-agent-sdk
+        run: pip install -r requirements.txt
 
-      - name: Run analysis
+      - name: Run Analysis
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python run_sdk_agent.py \
-            --analyze-project src/main/java \
-            --output-format markdown \
-            --output-path report.md
+          python run_sdk_agent.py --analyze src/main/java \
+            --output analysis_report.md
 
-      - name: Comment PR
-        uses: actions/github-script@v6
+      - name: Upload Report
+        uses: actions/upload-artifact@v3
         with:
-          script: |
-            const fs = require('fs');
-            const report = fs.readFileSync('report.md', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: report
-            });
+          name: analysis-report
+          path: analysis_report.md
 ```
 
-### Q9: 支持哪些 Spring 版本？
+---
 
-**A**:
-- ✅ Spring MVC 3.x, 4.x, 5.x
-- ✅ Spring Boot 1.x, 2.x, 3.x
-- ✅ Spring Framework 6.x
-- ✅ 傳統 XML 配置和註解配置都支持
+## 相關資源
 
-LLM-First 方法的優勢：即使 Spring 版本更新，也無需修改代碼！
-
-### Q10: 如何貢獻或報告問題？
-
-**A**:
-- 🐛 報告 Bug：[GitHub Issues](https://github.com/yourusername/springmvc-agent-analyzer/issues)
-- 💡 功能建議：[GitHub Discussions](https://github.com/yourusername/springmvc-agent-analyzer/discussions)
-- 🔧 貢獻代碼：Fork → 修改 → Pull Request
-- 📧 聯繫：查看 README.md
+- 📘 [SDK Agent 技術規格](./SDK_AGENT_SPECIFICATION.md)
+- 📋 [實施計劃](./SDK_AGENT_IMPLEMENTATION_PLAN.md)
+- 🔄 [遷移指南](./MIGRATION_TO_SDK.md)
+- 🏗️ [架構文檔](./ARCHITECTURE.md)
+- 🚀 [快速開始](../QUICKSTART.md)
 
 ---
 
-## 下一步
+## 支持
 
-- 📖 閱讀 [SDK Agent 技術規格](./SDK_AGENT_SPECIFICATION.md)
-- 🛠️ 查看 [實現計劃](./SDK_AGENT_IMPLEMENTATION_PLAN.md)
-- 🔄 了解 [從 MCP 遷移到 SDK](./MIGRATION_TO_SDK.md)
-- 🏗️ 探索 [架構設計](./ARCHITECTURE.md)
+如有問題或建議，請：
+
+- 提交 Issue: https://github.com/your-org/springmvc-agent-analyzer/issues
+- 查看文檔: https://docs.springmvc-analyzer.com
+- 聯繫維護者: support@springmvc-analyzer.com
 
 ---
 
-**享受 SDK Agent 帶來的交互式代碼分析體驗！** 🚀
+**祝您使用愉快！** 🎉
