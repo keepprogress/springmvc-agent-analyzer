@@ -103,9 +103,30 @@ class SpringMVCAnalyzerAgent:
         }
         self.factory = get_factory(factory_config)
 
-        # Initialize components (will be fully integrated in Phase 5)
-        self.client = None  # ClaudeSDKClient instance (Phase 5)
-        self.hooks: List[Any] = []     # List of registered hooks (Phase 4)
+        # Initialize SDK Client (Phase 5)
+        from sdk_agent.mcp_server_factory import create_analyzer_mcp_server
+        from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
+
+        # Create MCP server with all tools
+        self.mcp_server = create_analyzer_mcp_server()
+
+        # Configure SDK options
+        sdk_options = ClaudeAgentOptions(
+            mcp_servers={"analyzer": self.mcp_server},
+            system_prompt=self.system_prompt,
+            max_turns=self.config.max_turns,
+            # Enable all analyzer tools
+            allowed_tools=[f"mcp__analyzer__{tool}" for tool in [
+                "analyze_controller", "analyze_jsp", "analyze_service",
+                "analyze_mapper", "analyze_procedure", "analyze_directory",
+                "build_graph", "export_graph", "query_graph",
+                "find_dependencies", "analyze_impact"
+            ]]
+        )
+
+        # Create SDK client instance
+        self.client = ClaudeSDKClient(options=sdk_options)
+        self.hooks: List[Any] = []     # Hooks registered separately (Phase 5)
 
         logger.info(
             f"SpringMVCAnalyzerAgent initialized: mode={self.config.mode}, "
@@ -123,25 +144,48 @@ Use available tools to analyze code and provide insights."""
 
     async def start_interactive(self) -> None:
         """
-        Start interactive dialogue mode.
+        Start interactive dialogue mode with SDK client.
 
-        Raises:
-            AgentNotInitializedError: If client not initialized (Phase 5)
+        Uses ClaudeSDKClient for continuous conversation with context retention.
         """
-        if not self.client:
-            raise AgentNotInitializedError(
-                PHASE_NOT_IMPLEMENTED_MESSAGE.format(phase=5) +
-                "\n\nCurrent status: Phase 3 (Tools) complete. "
-                "SDK Client integration requires Phase 4 (Hooks) to be "
-                "implemented first, then SDK integration in Phase 5."
-            )
+        logger.info("Starting interactive mode with SDK client...")
 
-        logger.info("Starting interactive mode...")
-        # Full implementation in Phase 5
         print("🤖 SpringMVC Agent Analyzer - Interactive Mode")
         print("=" * 60)
-        print("Note: Full implementation coming in Phase 5")
+        print("SDK Client: Initialized")
+        print(f"Tools Available: {len(self.get_tools())}")
+        print(f"Max Turns: {self.config.max_turns}")
         print("=" * 60)
+        print("\nType your queries. Press Ctrl+C to exit.\n")
+
+        try:
+            async with self.client:
+                while True:
+                    try:
+                        # Get user input
+                        user_input = input("You: ")
+                        if not user_input.strip():
+                            continue
+
+                        # Send query to SDK client
+                        await self.client.query(user_input)
+
+                        # Stream response
+                        print("Agent: ", end="", flush=True)
+                        async for message in self.client.receive_response():
+                            print(message, end="", flush=True)
+                        print()  # New line after response
+
+                    except KeyboardInterrupt:
+                        logger.info("User interrupted interactive session")
+                        break
+                    except Exception as e:
+                        logger.error(f"Error in interactive loop: {e}", exc_info=True)
+                        print(f"\nError: {e}\n")
+
+        except Exception as e:
+            logger.error(f"Failed to start interactive mode: {e}", exc_info=True)
+            raise AgentNotInitializedError(f"Failed to initialize SDK client: {e}")
 
     async def analyze_project(
         self,
@@ -161,19 +205,36 @@ Use available tools to analyze code and provide insights."""
         Raises:
             AgentNotInitializedError: If client not initialized (Phase 5)
         """
-        if not self.client:
-            raise AgentNotInitializedError(
-                PHASE_NOT_IMPLEMENTED_MESSAGE.format(phase=5) +
-                "\n\nCurrent status: Phase 2 (Infrastructure) complete."
-            )
-
         logger.info(f"Analyzing project: {project_path}")
-        # Full implementation in Phase 5
+
+        # Build analysis prompt
+        analysis_prompt = f"""Analyze the Spring MVC project at: {project_path}
+
+Please:
+1. Use analyze_directory to scan the project
+2. Build a knowledge graph with build_graph
+3. Export the graph to {output_format} format
+4. Provide a comprehensive analysis summary
+
+Output format: {output_format}
+"""
+
+        results = []
+        async with self.client:
+            # Send analysis request
+            await self.client.query(analysis_prompt)
+
+            # Collect response
+            async for message in self.client.receive_response():
+                results.append(message)
+
+        full_response = "".join(results)
+
         return {
-            "status": "pending",
-            "message": PHASE_NOT_IMPLEMENTED_MESSAGE.format(phase=5),
             "project_path": project_path,
-            "output_format": output_format
+            "format": output_format,
+            "analysis": full_response,
+            "success": True
         }
 
     async def set_model(self, model: str) -> None:

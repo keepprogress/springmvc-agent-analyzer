@@ -15,9 +15,9 @@ sqlparse>=0.5.0
 mcp>=1.0.0
 
 # Claude Agent SDK (for SDK Agent mode)
-# NOTE: SDK not yet published to PyPI
-# Uncomment when available: claude-agent-sdk>=0.1.0
-# For now, SDK Agent mode will work with placeholder implementation
+# Official SDK released - install with: pip install claude-agent-sdk
+# Requires Python 3.10+, Node.js, and Claude Code 2.0.0+
+claude-agent-sdk>=0.1.0
 
 # Utilities
 python-dotenv>=1.0.0
