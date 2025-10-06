@@ -10,6 +10,8 @@ from typing import List, Dict, Any, Callable, Optional
 from pathlib import Path
 import logging
 
+from sdk_agent.error_formatter import ErrorFormatter, log_structured_error
+
 logger = logging.getLogger("sdk_agent.tools.batch")
 
 
@@ -26,18 +28,38 @@ async def process_files_in_batches(
     Args:
         files: List of file paths to process
         process_func: Async function to process each file
-        batch_size: Number of files per batch
-        max_concurrency: Maximum concurrent operations
+        batch_size: Number of files per batch (must be >= 1)
+        max_concurrency: Maximum concurrent operations (must be >= 1)
         progress_callback: Optional callback for progress updates
 
     Returns:
         List of processing results
+
+    Raises:
+        ValueError: If batch_size or max_concurrency is less than 1
 
     Performance:
         - Processes files in batches to reduce overhead
         - Controls concurrency to avoid resource exhaustion
         - Provides progress feedback for long-running operations
     """
+    # Validate configuration parameters
+    if batch_size < 1:
+        raise ValueError(
+            f"batch_size must be >= 1, got {batch_size}. "
+            "Use larger batch sizes for better performance."
+        )
+    if max_concurrency < 1:
+        raise ValueError(
+            f"max_concurrency must be >= 1, got {max_concurrency}. "
+            "Recommended range: 3-10 for optimal performance."
+        )
+    if max_concurrency > 50:
+        logger.warning(
+            f"max_concurrency={max_concurrency} is very high. "
+            "Consider using 3-10 to avoid resource exhaustion."
+        )
+
     results = []
     total_files = len(files)
 
@@ -68,11 +90,28 @@ async def process_files_in_batches(
                         "result": result
                     }
                 except Exception as e:
-                    logger.error(f"Error processing {file_path}: {e}")
+                    # Use standardized error formatting
+                    log_structured_error(
+                        logger,
+                        e,
+                        component="batch_processor",
+                        context={
+                            "file_path": str(file_path),
+                            "batch_num": batch_num,
+                            "total_batches": total_batches
+                        }
+                    )
                     return {
                         "file": str(file_path),
                         "success": False,
-                        "error": str(e)
+                        "error": ErrorFormatter.format_processing_error(
+                            item=str(file_path),
+                            error=e,
+                            batch_info={
+                                "batch": batch_num,
+                                "total_batches": total_batches
+                            }
+                        )
                     }
 
         # Process batch concurrently

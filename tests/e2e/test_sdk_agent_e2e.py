@@ -77,10 +77,11 @@ public class UserController {
         agent.client.__aexit__ = AsyncMock()
         agent.client.query = AsyncMock()
 
-        async def mock_receive():
+        async def async_mock_analysis_response():
+            """Mock async response for project analysis."""
             yield "Analysis complete. Found 1 controller with 2 endpoints."
 
-        agent.client.receive_response = mock_receive
+        agent.client.receive_response = async_mock_analysis_response
 
         # Execute full workflow
         result = await agent.analyze_project(
@@ -121,11 +122,12 @@ public class UserController {
         ]
         response_iter = iter(responses)
 
-        async def mock_receive():
+        async def async_mock_incremental_responses():
+            """Mock async responses for incremental analysis steps."""
             for msg in next(response_iter):
                 yield msg
 
-        agent.client.receive_response = mock_receive
+        agent.client.receive_response = async_mock_incremental_responses
 
         # Simulate incremental analysis
         await agent.client.__aenter__()
@@ -174,7 +176,8 @@ public class UserController {
 
         call_count = 0
 
-        async def mock_query_with_errors(query: str):
+        async def async_mock_query_with_retry_logic(query: str):
+            """Mock async query that fails first then succeeds (testing retry)."""
             nonlocal call_count
             call_count += 1
 
@@ -184,12 +187,13 @@ public class UserController {
             # Subsequent calls: success
             return None
 
-        agent.client.query = mock_query_with_errors
+        agent.client.query = async_mock_query_with_retry_logic
 
-        async def mock_receive_success():
+        async def async_mock_success_response():
+            """Mock async success response after retry."""
             yield "Analysis successful after retry"
 
-        agent.client.receive_response = mock_receive_success
+        agent.client.receive_response = async_mock_success_response
 
         await agent.client.__aenter__()
         try:
@@ -227,7 +231,8 @@ class TestConcurrentOperations:
         # Mock process function
         process_count = 0
 
-        async def mock_process(file_path: Path) -> dict:
+        async def async_mock_file_processor(file_path: Path) -> dict:
+            """Mock async file processing with simulated work delay."""
             nonlocal process_count
             process_count += 1
             await asyncio.sleep(0.01)  # Simulate work
@@ -236,7 +241,7 @@ class TestConcurrentOperations:
         # Process in batches
         results = await process_files_in_batches(
             files,
-            mock_process,
+            async_mock_file_processor,
             batch_size=5,
             max_concurrency=3
         )
@@ -266,10 +271,11 @@ class TestLongRunningSession:
         agent.client.__aexit__ = AsyncMock()
         agent.client.query = AsyncMock()
 
-        async def mock_receive():
+        async def async_mock_generic_response():
+            """Mock async generic response for testing."""
             yield "Response"
 
-        agent.client.receive_response = mock_receive
+        agent.client.receive_response = async_mock_generic_response
 
         # Note: Full interactive session testing would require
         # mocking user input, which is complex. This test verifies
@@ -292,15 +298,17 @@ class TestLongRunningSession:
 
         queries = []
 
-        async def capture_query(query: str):
+        async def async_mock_query_capture(query: str):
+            """Mock async query that captures queries for testing context retention."""
             queries.append(query)
 
-        agent.client.query = capture_query
+        agent.client.query = async_mock_query_capture
 
-        async def mock_receive():
+        async def async_mock_context_response():
+            """Mock async response for context retention testing."""
             yield "Response"
 
-        agent.client.receive_response = mock_receive
+        agent.client.receive_response = async_mock_context_response
 
         await agent.client.__aenter__()
         try:

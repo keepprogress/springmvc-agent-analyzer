@@ -124,6 +124,8 @@ class TestProcessFilesInBatches:
         assert len(successful) == 9
         assert len(errors) == 1
         assert "error" in errors[0]
+        # Verify new standardized error format
+        assert "[ProcessingError]" in errors[0]["error"]
 
     @pytest.mark.asyncio
     async def test_progress_callback(self):
@@ -195,6 +197,63 @@ class TestProcessFilesInBatches:
 
         assert len(results) == 1
         assert results[0].get("success") is True
+
+    @pytest.mark.asyncio
+    async def test_invalid_batch_size(self):
+        """Test that invalid batch_size raises error."""
+        files = [Path("test.java")]
+
+        async def mock_process(file_path: Path):
+            return {"file": str(file_path)}
+
+        with pytest.raises(ValueError) as exc_info:
+            await process_files_in_batches(
+                files,
+                mock_process,
+                batch_size=0,
+                max_concurrency=5
+            )
+
+        assert "batch_size must be >= 1" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_invalid_concurrency(self):
+        """Test that invalid max_concurrency raises error."""
+        files = [Path("test.java")]
+
+        async def mock_process(file_path: Path):
+            return {"file": str(file_path)}
+
+        with pytest.raises(ValueError) as exc_info:
+            await process_files_in_batches(
+                files,
+                mock_process,
+                batch_size=10,
+                max_concurrency=0
+            )
+
+        assert "max_concurrency must be >= 1" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_high_concurrency_warning(self):
+        """Test that very high concurrency triggers warning."""
+        files = [Path("test.java")]
+
+        async def mock_process(file_path: Path):
+            return {"file": str(file_path)}
+
+        with patch('sdk_agent.tools.batch_processor.logger') as mock_logger:
+            await process_files_in_batches(
+                files,
+                mock_process,
+                batch_size=10,
+                max_concurrency=100  # Very high
+            )
+
+            # Should log warning
+            mock_logger.warning.assert_called_once()
+            warning_message = mock_logger.warning.call_args[0][0]
+            assert "very high" in warning_message.lower()
 
 
 class TestAnalyzeDirectoryOptimized:

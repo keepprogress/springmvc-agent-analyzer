@@ -60,7 +60,9 @@ class TestValidateAndExpandPath:
                 must_exist=True
             )
 
-        assert "File not found" in str(exc_info.value)
+        # New standardized error format
+        assert "[FileNotFoundError]" in str(exc_info.value)
+        assert "File does not exist" in str(exc_info.value)
 
     def test_file_not_found_optional(self, tmp_path):
         """Test that missing file is allowed when must_exist=False."""
@@ -92,6 +94,8 @@ class TestValidateAndExpandPath:
             # Should log warning about path outside project root
             mock_logger.warning.assert_called_once()
             warning_message = mock_logger.warning.call_args[0][0]
+            # New standardized error format
+            assert "[SecurityWarning]" in warning_message
             assert "outside project root" in warning_message
 
 
@@ -143,7 +147,8 @@ class TestValidateToolArgs:
                 optional_fields=None
             )
 
-        assert "Missing required fields" in str(exc_info.value)
+        # New standardized error format
+        assert "[ValidationError]" in str(exc_info.value)
         assert "file_path" in str(exc_info.value)
 
     def test_optional_fields_with_defaults(self):
@@ -321,33 +326,30 @@ class TestHandleAnalysisError:
 
         message = result["content"][0]["text"]
 
-        # Should contain tool name
+        # New standardized error format
+        assert "[FileNotFoundError]" in message
         assert "analyze_controller" in message
-
-        # Should contain file path
         assert "test.java" in message
-
-        # Should contain error
         assert "not found" in message
+        assert "Suggestions:" in message
 
-        # Should contain suggestions
-        assert "Suggestions" in message or "Check" in message
-
-    @patch('sdk_agent.tools.common.logger')
-    def test_error_logging(self, mock_logger):
-        """Test that errors are logged correctly."""
+    @patch('sdk_agent.tools.common.log_structured_error')
+    def test_error_logging(self, mock_log_structured_error):
+        """Test that errors are logged correctly using structured logging."""
         error = RuntimeError("Analysis failed")
         file_path = "test.java"
         tool_name = "analyze_controller"
 
         handle_analysis_error(error, file_path, tool_name)
 
-        # Should log error with exc_info
-        mock_logger.error.assert_called_once()
-        call_args = mock_logger.error.call_args
-        assert "analyze_controller" in call_args[0][0]
-        assert "test.java" in call_args[0][0]
-        assert call_args[1]["exc_info"] is True
+        # Should call log_structured_error with correct parameters
+        mock_log_structured_error.assert_called_once()
+        call_args = mock_log_structured_error.call_args
+
+        # Check that error, component, and context are passed
+        assert call_args[0][1] == error  # error is second arg (after logger)
+        assert call_args[1]["component"] == "analyze_controller"
+        assert call_args[1]["context"]["file_path"] == "test.java"
 
 
 class TestPathSecurityChecks:

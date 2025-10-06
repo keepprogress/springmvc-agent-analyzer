@@ -11,6 +11,7 @@ import logging
 
 from sdk_agent.utils import expand_file_path
 from sdk_agent.exceptions import SDKAgentError
+from sdk_agent.error_formatter import ErrorFormatter, log_structured_error
 
 logger = logging.getLogger("sdk_agent.tools.common")
 
@@ -50,27 +51,56 @@ def validate_and_expand_path(
 
         # Validate existence if required
         if must_exist and not full_path.exists():
-            raise SDKAgentError(
-                f"File not found: {file_path}\n"
-                f"Resolved to: {full_path}\n"
-                f"Project root: {project_root_path}"
+            error_msg = ErrorFormatter.format_file_error(
+                file_path=file_path,
+                error=FileNotFoundError(f"File does not exist: {full_path}"),
+                operation="access",
+                suggestions=[
+                    "Check that the file exists at the specified path",
+                    f"Resolved path: {full_path}",
+                    f"Project root: {project_root_path}",
+                    "Verify file permissions and accessibility"
+                ]
             )
+            raise SDKAgentError(error_msg)
 
         # Ensure path is within project root (security check)
         try:
             full_path.relative_to(project_root_path)
         except ValueError:
             # Path is outside project root - potential security issue
-            logger.warning(
-                f"Path {full_path} is outside project root {project_root_path}"
+            error_msg = ErrorFormatter.format_error_message(
+                error_type="SecurityWarning",
+                component="path_validation",
+                details="Path is outside project root",
+                context={
+                    "requested_path": file_path,
+                    "resolved_path": str(full_path),
+                    "project_root": str(project_root_path)
+                },
+                suggestions=[
+                    "Ensure paths stay within project boundaries",
+                    "Avoid using '..' to traverse directories",
+                    "Use absolute paths within the project"
+                ]
             )
+            logger.warning(error_msg)
 
         return full_path
 
     except Exception as e:
         if isinstance(e, SDKAgentError):
             raise
-        raise SDKAgentError(f"Path validation failed for {file_path}: {str(e)}")
+        error_msg = ErrorFormatter.format_error_message(
+            error_type="PathValidationError",
+            component="path_validation",
+            details="Path validation failed",
+            context={
+                "file_path": file_path,
+                "error": str(e)
+            }
+        )
+        raise SDKAgentError(error_msg)
 
 
 def validate_tool_args(
@@ -95,11 +125,17 @@ def validate_tool_args(
     # Check required fields
     missing = [field for field in required_fields if field not in args]
     if missing:
-        raise SDKAgentError(
-            f"Missing required fields: {', '.join(missing)}\n"
-            f"Required: {required_fields}\n"
-            f"Provided: {list(args.keys())}"
+        error_msg = ErrorFormatter.format_validation_error(
+            field_name=", ".join(missing),
+            value=list(args.keys()),
+            expected=f"Required fields: {required_fields}",
+            suggestions=[
+                f"Add missing field(s): {', '.join(missing)}",
+                "Check tool documentation for required parameters",
+                f"Current fields provided: {list(args.keys())}"
+            ]
         )
+        raise SDKAgentError(error_msg)
 
     # Add optional fields with defaults
     if optional_fields:
@@ -299,18 +335,29 @@ def handle_analysis_error(
     Returns:
         Formatted error response
     """
-    error_message = f"""Error in {tool_name}
-{'=' * 60}
-File: {file_path}
-Error: {str(error)}
+    # Use standardized error formatter
+    error_message = ErrorFormatter.format_error_message(
+        error_type=type(error).__name__,
+        component=tool_name,
+        details=str(error),
+        context={
+            "file_path": file_path,
+            "error_type": type(error).__name__
+        },
+        suggestions=[
+            "Check that the file exists and is readable",
+            "Verify the file is the correct type for this tool",
+            "Check logs for detailed error information"
+        ]
+    )
 
-Suggestions:
-- Check that the file exists and is readable
-- Verify the file is the correct type for this tool
-- Check logs for detailed error information
-"""
-
-    logger.error(f"{tool_name} failed for {file_path}: {error}", exc_info=True)
+    # Use structured logging
+    log_structured_error(
+        logger,
+        error,
+        component=tool_name,
+        context={"file_path": file_path}
+    )
 
     return {
         "content": [{
