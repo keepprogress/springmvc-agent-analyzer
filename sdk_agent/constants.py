@@ -95,6 +95,9 @@ FILE_EXT_JSP = ".jsp"
 FILE_EXT_XML = ".xml"
 FILE_EXT_SQL = ".sql"
 
+# Graph Export Formats
+GRAPH_EXPORT_FORMATS = ["d3", "cytoscape", "dot", "graphml"]
+
 # Logging
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_LOG_FILE = "logs/sdk_agent.log"

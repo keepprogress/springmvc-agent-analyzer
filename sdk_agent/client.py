@@ -84,15 +84,34 @@ class SpringMVCAnalyzerAgent:
         else:
             self.system_prompt = self._get_default_system_prompt()
 
-        # Initialize components (will be implemented in Phase 5)
-        self.client = None  # ClaudeSDKClient instance
-        self.hooks: List[Any] = []     # List of registered hooks
-        self.tools: List[Dict[str, Any]] = []     # List of registered tools
+        # Initialize agent factory with config (Phase 3)
+        from sdk_agent.agent_factory import get_factory
+        factory_config = {
+            "models": {
+                "haiku": "claude-3-5-haiku-20241022",
+                "sonnet": "claude-3-5-sonnet-20241022",
+                "opus": "claude-opus-4-20250514"
+            },
+            "agents": {
+                "min_confidence": self.config.min_confidence
+            },
+            "cache": {
+                "cache_dir": self.config.cache_dir,
+                "max_size_mb": self.config.max_cache_size_mb,
+                "ttl_seconds": self.config.ttl_seconds
+            }
+        }
+        self.factory = get_factory(factory_config)
+
+        # Initialize components (will be fully integrated in Phase 5)
+        self.client = None  # ClaudeSDKClient instance (Phase 5)
+        self.hooks: List[Any] = []     # List of registered hooks (Phase 4)
 
         logger.info(
             f"SpringMVCAnalyzerAgent initialized: mode={self.config.mode}, "
             f"hooks_enabled={self.config.hooks_enabled}, "
-            f"permission_mode={self.config.permission_mode}"
+            f"permission_mode={self.config.permission_mode}, "
+            f"tools_available={len(self.get_tools())}"
         )
 
     def _get_default_system_prompt(self) -> str:
@@ -112,9 +131,9 @@ Use available tools to analyze code and provide insights."""
         if not self.client:
             raise AgentNotInitializedError(
                 PHASE_NOT_IMPLEMENTED_MESSAGE.format(phase=5) +
-                "\n\nCurrent status: Phase 2 (Infrastructure) complete. "
-                "SDK Client integration requires Phase 3 (Tools) and "
-                "Phase 4 (Hooks) to be implemented first."
+                "\n\nCurrent status: Phase 3 (Tools) complete. "
+                "SDK Client integration requires Phase 4 (Hooks) to be "
+                "implemented first, then SDK integration in Phase 5."
             )
 
         logger.info("Starting interactive mode...")
@@ -216,8 +235,17 @@ Use available tools to analyze code and provide insights."""
         return self.config
 
     def get_tools(self) -> List[Dict[str, Any]]:
-        """Get list of registered tools."""
-        return self.tools
+        """
+        Get list of registered tools.
+
+        Returns:
+            List of tool metadata for SDK registration
+        """
+        # Import tools
+        from sdk_agent.tools import ALL_TOOL_META
+
+        # Return tool metadata (Phase 3 complete, SDK integration in Phase 5)
+        return ALL_TOOL_META
 
     def get_hooks(self) -> List[Any]:
         """Get list of registered hooks."""
