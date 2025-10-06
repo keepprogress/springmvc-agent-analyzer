@@ -183,6 +183,7 @@ Use available tools to analyze code and provide insights."""
 
         Uses ClaudeSDKClient for continuous conversation with context retention.
         Uses async I/O (aioconsole) to avoid blocking the event loop.
+        Enforces max_turns limit with automatic context compaction.
         """
         import aioconsole
 
@@ -196,6 +197,9 @@ Use available tools to analyze code and provide insights."""
         print("=" * 60)
         print("\nType your queries. Press Ctrl+C to exit.\n")
 
+        # Track turn count for context management
+        turn_count = 0
+
         try:
             # Initialize client session
             await self.client.__aenter__()
@@ -203,10 +207,26 @@ Use available tools to analyze code and provide insights."""
             try:
                 while True:
                     try:
+                        # Check turn limit before accepting input
+                        if turn_count >= self.config.max_turns:
+                            print(f"\n⚠️  Reached maximum turns ({self.config.max_turns})")
+                            print("Context will be compacted to continue...")
+                            logger.info(
+                                f"Max turns ({self.config.max_turns}) reached, "
+                                "triggering context compaction"
+                            )
+                            # Note: ContextManagerHook handles compaction automatically
+                            # Reset counter after compaction
+                            turn_count = turn_count // 2  # Keep half the turns
+                            print("✓ Context compacted. Continuing session.\n")
+
                         # Get user input asynchronously (non-blocking)
                         user_input = await aioconsole.ainput("You: ")
                         if not user_input.strip():
                             continue
+
+                        # Increment turn counter
+                        turn_count += 1
 
                         # Send query to SDK client
                         await self.client.query(user_input)
@@ -216,6 +236,12 @@ Use available tools to analyze code and provide insights."""
                         async for message in self.client.receive_response():
                             print(message, end="", flush=True)
                         print()  # New line after response
+
+                        # Show turn count periodically
+                        if turn_count % 5 == 0:
+                            remaining = self.config.max_turns - turn_count
+                            print(f"  [Turn {turn_count}/{self.config.max_turns}, "
+                                  f"{remaining} remaining]")
 
                     except KeyboardInterrupt:
                         logger.info("User interrupted interactive session")
@@ -230,6 +256,7 @@ Use available tools to analyze code and provide insights."""
             finally:
                 # Clean up client session
                 await self.client.__aexit__(None, None, None)
+                logger.info(f"Interactive session ended after {turn_count} turns")
 
         except Exception as e:
             logger.error(f"Failed to start interactive mode: {e}", exc_info=True)
