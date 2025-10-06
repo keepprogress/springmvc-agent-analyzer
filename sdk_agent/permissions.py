@@ -1,11 +1,25 @@
 """
 SDK Agent Permissions Module.
 
-Fine-grained permission control for tool usage.
+Fine-grained permission control for tool usage with audit logging.
 """
 
 from typing import Dict, Any, Optional
 import logging
+
+from sdk_agent.constants import (
+    PERMISSION_MODE_ACCEPT_ALL,
+    PERMISSION_MODE_ACCEPT_EDITS,
+    PERMISSION_MODE_REJECT_ALL,
+    PERMISSION_MODE_CUSTOM,
+    VALID_PERMISSION_MODES,
+    PERMISSION_ALLOW,
+    PERMISSION_CONFIRM,
+    PERMISSION_DENY,
+    VALID_PERMISSION_DECISIONS,
+    READ_ONLY_TOOLS,
+    EDIT_TOOLS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,92 +37,124 @@ class PermissionManager:
 
     def __init__(
         self,
-        mode: str = "acceptEdits",
+        mode: str = PERMISSION_MODE_ACCEPT_EDITS,
         custom_permissions: Optional[Dict[str, str]] = None
     ):
         """
-        Initialize permission manager.
+        Initialize permission manager with audit logging.
 
         Args:
             mode: Permission mode (acceptAll, acceptEdits, rejectAll, custom)
             custom_permissions: Custom permission rules (for custom mode)
+
+        Raises:
+            ValueError: If mode is invalid
         """
+        if mode not in VALID_PERMISSION_MODES:
+            raise ValueError(
+                f"Invalid permission mode: {mode}. "
+                f"Must be one of {VALID_PERMISSION_MODES}"
+            )
+
         self.mode = mode
         self.custom_permissions = custom_permissions or {}
 
-        # Define read-only (safe) tools
-        self.read_tools = {
-            "analyze_controller",
-            "analyze_service",
-            "analyze_mapper",
-            "analyze_jsp",
-            "analyze_procedure",
-            "query_graph",
-            "find_dependencies",
-            "analyze_impact",
-            "list_files",
-            "read_file",
-        }
-
-        # Define edit/write tools (require confirmation)
-        self.edit_tools = {
-            "build_graph",
-            "export_graph",
-        }
+        # Use constants for tool categories
+        self.read_tools = READ_ONLY_TOOLS
+        self.edit_tools = EDIT_TOOLS
 
         logger.info(f"PermissionManager initialized with mode: {mode}")
 
-    def can_use_tool(self, tool_name: str, **kwargs) -> str:
+    def can_use_tool(
+        self,
+        tool_name: str,
+        context: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> str:
         """
-        Check if tool can be used.
+        Check if tool can be used with full audit logging.
 
         Args:
             tool_name: Name of the tool
-            **kwargs: Additional context
+            context: Optional context information for audit
+            **kwargs: Additional context (deprecated, use context dict)
 
         Returns:
             Permission decision: "allow", "confirm", or "deny"
         """
+        # Compute decision
+        decision = self._compute_decision(tool_name)
+
+        # Audit log - important for security and debugging
+        audit_context = context or kwargs
+        logger.info(
+            f"Permission check: tool={tool_name}, decision={decision}, "
+            f"mode={self.mode}, context={audit_context}"
+        )
+
+        return decision
+
+    def _compute_decision(self, tool_name: str) -> str:
+        """
+        Compute permission decision based on mode and tool.
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            Permission decision
+        """
         # Mode: acceptAll
-        if self.mode == "acceptAll":
+        if self.mode == PERMISSION_MODE_ACCEPT_ALL:
             logger.debug(f"Tool {tool_name}: ALLOW (acceptAll mode)")
-            return "allow"
+            return PERMISSION_ALLOW
 
         # Mode: rejectAll
-        if self.mode == "rejectAll":
+        if self.mode == PERMISSION_MODE_REJECT_ALL:
             logger.debug(f"Tool {tool_name}: CONFIRM (rejectAll mode)")
-            return "confirm"
+            return PERMISSION_CONFIRM
 
         # Mode: acceptEdits
-        if self.mode == "acceptEdits":
+        if self.mode == PERMISSION_MODE_ACCEPT_EDITS:
             if tool_name in self.read_tools:
                 logger.debug(f"Tool {tool_name}: ALLOW (read tool)")
-                return "allow"
+                return PERMISSION_ALLOW
             elif tool_name in self.edit_tools:
                 logger.debug(f"Tool {tool_name}: CONFIRM (edit tool)")
-                return "confirm"
+                return PERMISSION_CONFIRM
             else:
                 logger.warning(f"Unknown tool {tool_name}: defaulting to CONFIRM")
-                return "confirm"
+                return PERMISSION_CONFIRM
 
         # Mode: custom
-        if self.mode == "custom":
+        if self.mode == PERMISSION_MODE_CUSTOM:
             if tool_name in self.custom_permissions:
                 decision = self.custom_permissions[tool_name]
                 logger.debug(f"Tool {tool_name}: {decision.upper()} (custom rule)")
                 return decision
             else:
                 logger.debug(f"Tool {tool_name}: CONFIRM (no custom rule)")
-                return "confirm"
+                return PERMISSION_CONFIRM
 
         # Default: confirm
         logger.warning(f"Unknown permission mode {self.mode}: defaulting to CONFIRM")
-        return "confirm"
+        return PERMISSION_CONFIRM
 
     def set_mode(self, mode: str):
-        """Set permission mode."""
-        if mode not in ["acceptAll", "acceptEdits", "rejectAll", "custom"]:
-            raise ValueError(f"Invalid permission mode: {mode}")
+        """
+        Set permission mode.
+
+        Args:
+            mode: Permission mode
+
+        Raises:
+            ValueError: If mode is invalid
+        """
+        if mode not in VALID_PERMISSION_MODES:
+            raise ValueError(
+                f"Invalid permission mode: {mode}. "
+                f"Must be one of {VALID_PERMISSION_MODES}"
+            )
 
         self.mode = mode
         logger.info(f"Permission mode changed to: {mode}")
@@ -120,9 +166,15 @@ class PermissionManager:
         Args:
             tool_name: Name of the tool
             permission: Permission (allow, confirm, deny)
+
+        Raises:
+            ValueError: If permission is invalid
         """
-        if permission not in ["allow", "confirm", "deny"]:
-            raise ValueError(f"Invalid permission: {permission}")
+        if permission not in VALID_PERMISSION_DECISIONS:
+            raise ValueError(
+                f"Invalid permission: {permission}. "
+                f"Must be one of {VALID_PERMISSION_DECISIONS}"
+            )
 
         self.custom_permissions[tool_name] = permission
         logger.info(f"Custom permission set: {tool_name} = {permission}")

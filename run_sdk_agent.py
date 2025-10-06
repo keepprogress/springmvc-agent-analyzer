@@ -28,16 +28,24 @@ from typing import Optional
 from sdk_agent.client import SpringMVCAnalyzerAgent
 from sdk_agent.config import load_config, validate_config_file
 from sdk_agent.exceptions import ConfigurationError, AgentNotInitializedError
+from sdk_agent.constants import (
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_LOG_FILE,
+    LOG_FORMAT,
+    VALID_OUTPUT_FORMATS,
+)
 
 
-def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
-    """Setup logging configuration."""
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+def setup_logging(level: str = DEFAULT_LOG_LEVEL, log_file: Optional[str] = None):
+    """
+    Setup logging configuration for SDK Agent.
 
+    Uses module-specific loggers to avoid conflicts with other components.
+    """
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
-    console_handler.setFormatter(logging.Formatter(log_format))
+    console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 
     # File handler (if specified)
     handlers = [console_handler]
@@ -45,15 +53,14 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(level)
-        file_handler.setFormatter(logging.Formatter(log_format))
+        file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
         handlers.append(file_handler)
 
-    # Root logger
-    logging.basicConfig(
-        level=level,
-        format=log_format,
-        handlers=handlers
-    )
+    # Configure SDK agent logger (not root logger to avoid conflicts)
+    sdk_logger = logging.getLogger("sdk_agent")
+    sdk_logger.setLevel(level)
+    sdk_logger.handlers = handlers
+    sdk_logger.propagate = False
 
 
 def parse_args():
@@ -105,7 +112,7 @@ Examples:
     # Output options
     parser.add_argument(
         "--output-format",
-        choices=["markdown", "json", "html"],
+        choices=VALID_OUTPUT_FORMATS,
         default="markdown",
         help="Output format for batch analysis (default: markdown)"
     )
@@ -282,10 +289,10 @@ async def main():
     log_file = args.log_file
     if not log_file and not args.validate_config:
         # Use default log file
-        log_file = "logs/sdk_agent.log"
+        log_file = DEFAULT_LOG_FILE
 
     setup_logging(level=args.log_level, log_file=log_file)
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("sdk_agent")
 
     logger.info("Starting SDK Agent mode...")
     logger.info(f"Arguments: {vars(args)}")

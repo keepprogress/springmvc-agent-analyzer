@@ -5,11 +5,34 @@ Common utility functions for SDK Agent mode.
 """
 
 import os
+import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import logging
 
+from sdk_agent.exceptions import SDKAgentError
+from sdk_agent.constants import (
+    FILE_DETECTION_BUFFER_SIZE,
+    FILE_DETECTION_MAX_LINES,
+    FILE_TYPE_CONTROLLER,
+    FILE_TYPE_SERVICE,
+    FILE_TYPE_MAPPER,
+    FILE_TYPE_JSP,
+    FILE_TYPE_PROCEDURE,
+    FILE_TYPE_UNKNOWN,
+    FILE_EXT_JSP,
+    FILE_EXT_XML,
+    FILE_EXT_SQL,
+    FILE_EXT_JAVA,
+    MIN_CONFIDENCE_THRESHOLD,
+    OUTPUT_FORMAT_JSON,
+    OUTPUT_FORMAT_MARKDOWN,
+)
+
 logger = logging.getLogger(__name__)
+
+# System prompt cache
+_PROMPT_CACHE: Dict[str, str] = {}
 
 
 def expand_file_path(
@@ -17,7 +40,10 @@ def expand_file_path(
     project_root: Optional[str] = None
 ) -> str:
     """
-    Expand and normalize file path.
+    Expand and normalize file path with security validation.
+
+    Prevents path traversal attacks by ensuring the resolved path
+    is within the project root.
 
     Args:
         file_path: File path (relative or absolute)
@@ -25,18 +51,36 @@ def expand_file_path(
 
     Returns:
         Absolute normalized path
+
+    Raises:
+        SDKAgentError: If path is outside project root
     """
     path = Path(file_path)
 
     if not path.is_absolute() and project_root:
         path = Path(project_root) / path
 
-    return str(path.resolve())
+    resolved = path.resolve()
+
+    # Security: ensure path is within project_root
+    if project_root:
+        root = Path(project_root).resolve()
+        try:
+            resolved.relative_to(root)
+        except ValueError:
+            raise SDKAgentError(
+                f"Security error: Path {resolved} is outside project root {root}"
+            )
+
+    return str(resolved)
 
 
 def detect_file_type(file_path: str) -> str:
     """
     Detect file type based on extension and content.
+
+    Uses a more robust approach that checks file extension first,
+    then file name patterns, then content for Java files.
 
     Args:
         file_path: Path to file
@@ -47,39 +91,49 @@ def detect_file_type(file_path: str) -> str:
     path = Path(file_path)
 
     # Check extension
-    if path.suffix == '.jsp':
-        return 'jsp'
-    elif path.suffix == '.xml':
+    if path.suffix == FILE_EXT_JSP:
+        return FILE_TYPE_JSP
+    elif path.suffix == FILE_EXT_XML:
         # Could be MyBatis mapper
-        if 'mapper' in path.name.lower():
-            return 'mapper'
-        return 'unknown'
-    elif path.suffix == '.sql':
-        return 'procedure'
-    elif path.suffix == '.java':
+        if "mapper" in path.name.lower():
+            return FILE_TYPE_MAPPER
+        return FILE_TYPE_UNKNOWN
+    elif path.suffix == FILE_EXT_SQL:
+        return FILE_TYPE_PROCEDURE
+    elif path.suffix == FILE_EXT_JAVA:
         # Check file name patterns
         name_lower = path.stem.lower()
-        if 'controller' in name_lower:
-            return 'controller'
-        elif 'service' in name_lower:
-            return 'service'
-        elif 'mapper' in name_lower or 'dao' in name_lower:
-            return 'mapper'
+        if "controller" in name_lower:
+            return FILE_TYPE_CONTROLLER
+        elif "service" in name_lower:
+            return FILE_TYPE_SERVICE
+        elif "mapper" in name_lower or "dao" in name_lower:
+            return FILE_TYPE_MAPPER
 
-        # Check file content (first few lines)
+        # Check file content - read strategically
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read(1000)  # First 1000 chars
-                if '@Controller' in content or '@RestController' in content:
-                    return 'controller'
-                elif '@Service' in content:
-                    return 'service'
-                elif '@Mapper' in content or '@Repository' in content:
-                    return 'mapper'
+            with open(file_path, "r", encoding="utf-8") as f:
+                # Read first N lines instead of fixed buffer
+                lines = []
+                for i, line in enumerate(f):
+                    if i >= FILE_DETECTION_MAX_LINES:
+                        break
+                    lines.append(line)
+
+                content = "".join(lines)
+
+                # Check for annotations
+                if "@Controller" in content or "@RestController" in content:
+                    return FILE_TYPE_CONTROLLER
+                elif "@Service" in content:
+                    return FILE_TYPE_SERVICE
+                elif "@Mapper" in content or "@Repository" in content:
+                    return FILE_TYPE_MAPPER
+
         except Exception as e:
             logger.warning(f"Failed to read file {file_path}: {e}")
 
-    return 'unknown'
+    return FILE_TYPE_UNKNOWN
 
 
 def format_tool_result(
@@ -96,10 +150,9 @@ def format_tool_result(
     Returns:
         Formatted result with 'content' field for SDK
     """
-    if format_type == "json":
-        import json
+    if format_type == OUTPUT_FORMAT_JSON:
         text = json.dumps(data, indent=2, ensure_ascii=False)
-    elif format_type == "markdown":
+    elif format_type == OUTPUT_FORMAT_MARKDOWN:
         text = dict_to_markdown(data)
     else:
         text = str(data)
@@ -143,7 +196,7 @@ def dict_to_markdown(data: Dict[str, Any], indent: int = 0) -> str:
 
 def validate_confidence(
     confidence: float,
-    min_threshold: float = 0.7
+    min_threshold: float = MIN_CONFIDENCE_THRESHOLD
 ) -> bool:
     """
     Validate confidence score.
@@ -208,7 +261,10 @@ def ensure_directory(directory: str) -> None:
 
 def load_system_prompt(prompt_path: str) -> str:
     """
-    Load system prompt from file.
+    Load system prompt from file with caching.
+
+    Uses a module-level cache to avoid re-reading the same prompt file.
+    This is safe as prompts typically don't change during runtime.
 
     Args:
         prompt_path: Path to prompt file
@@ -216,5 +272,17 @@ def load_system_prompt(prompt_path: str) -> str:
     Returns:
         System prompt content
     """
-    with open(prompt_path, 'r', encoding='utf-8') as f:
-        return f.read()
+    # Check cache first
+    if prompt_path in _PROMPT_CACHE:
+        logger.debug(f"Using cached prompt: {prompt_path}")
+        return _PROMPT_CACHE[prompt_path]
+
+    # Load from file
+    logger.debug(f"Loading prompt from file: {prompt_path}")
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        prompt = f.read()
+
+    # Cache for future use
+    _PROMPT_CACHE[prompt_path] = prompt
+
+    return prompt
