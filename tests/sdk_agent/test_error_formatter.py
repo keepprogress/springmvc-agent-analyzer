@@ -415,5 +415,184 @@ class TestEdgeCases:
         assert "none_value:" in result
 
 
+class TestContextTruncation:
+    """Test context truncation to prevent log spam."""
+
+    def test_truncate_large_individual_value(self):
+        """Test that individual large values are truncated."""
+        large_value = "x" * 1000  # Exceeds MAX_CONTEXT_VALUE_LENGTH (500)
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test with large context",
+            context={"large_field": large_value}
+        )
+
+        # Should contain truncation marker
+        assert "[truncated]" in result
+        # Should not contain full value
+        assert large_value not in result
+
+    def test_truncate_total_context_length(self):
+        """Test that total context is truncated when too large."""
+        # Create context that exceeds MAX_TOTAL_CONTEXT_LENGTH (2000)
+        context = {f"field_{i}": "x" * 300 for i in range(10)}
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test with many context fields",
+            context=context
+        )
+
+        # Should contain truncation note
+        assert "exceeded" in result.lower() or "truncated" in result.lower()
+
+    def test_small_context_not_truncated(self):
+        """Test that small context is not truncated."""
+        context = {
+            "field1": "small value",
+            "field2": "another small value",
+            "field3": 12345
+        }
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test with small context",
+            context=context
+        )
+
+        # Should not be truncated
+        assert "[truncated]" not in result
+        assert "small value" in result
+        assert "another small value" in result
+        assert "12345" in result
+
+    def test_truncation_boundary_value(self):
+        """Test value exactly at truncation boundary."""
+        # Exactly at MAX_CONTEXT_VALUE_LENGTH
+        boundary_value = "x" * 500
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test boundary",
+            context={"field": boundary_value}
+        )
+
+        # Should not be truncated (exactly at limit)
+        assert boundary_value in result
+        assert "[truncated]" not in result
+
+    def test_truncation_just_over_boundary(self):
+        """Test value just over truncation boundary."""
+        # Just over MAX_CONTEXT_VALUE_LENGTH
+        over_boundary_value = "x" * 501
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Test over boundary",
+            context={"field": over_boundary_value}
+        )
+
+        # Should be truncated
+        assert "[truncated]" in result
+        assert over_boundary_value not in result
+
+    def test_mixed_truncation(self):
+        """Test with mix of truncated and non-truncated values."""
+        context = {
+            "small": "small value",
+            "large": "x" * 1000,
+            "medium": "y" * 100
+        }
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Mixed truncation test",
+            context=context
+        )
+
+        # Small and medium should be present
+        assert "small value" in result
+        assert "y" * 100 in result
+        # Large should be truncated
+        assert "[truncated]" in result
+        assert "x" * 1000 not in result
+
+
+class TestTypeAliases:
+    """Test type alias usage."""
+
+    def test_error_context_type_alias(self):
+        """Test ErrorContext type alias usage."""
+        from sdk_agent.error_formatter import ErrorContext
+
+        context: ErrorContext = {
+            "key1": "value1",
+            "key2": 123,
+            "key3": True
+        }
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Type alias test",
+            context=context
+        )
+
+        assert "key1: value1" in result
+        assert "key2: 123" in result
+        assert "key3: True" in result
+
+    def test_suggestion_list_type_alias(self):
+        """Test SuggestionList type alias usage."""
+        from sdk_agent.error_formatter import SuggestionList
+
+        suggestions: SuggestionList = [
+            "First suggestion",
+            "Second suggestion",
+            "Third suggestion"
+        ]
+
+        result = ErrorFormatter.format_error_message(
+            error_type="TestError",
+            component="test",
+            details="Type alias test",
+            suggestions=suggestions
+        )
+
+        assert "First suggestion" in result
+        assert "Second suggestion" in result
+        assert "Third suggestion" in result
+
+
+class TestModuleExports:
+    """Test module __all__ exports."""
+
+    def test_all_exports_available(self):
+        """Test that __all__ exports are accessible."""
+        from sdk_agent import error_formatter
+
+        # Check __all__ is defined
+        assert hasattr(error_formatter, "__all__")
+
+        # Check expected exports
+        expected_exports = [
+            "ErrorFormatter",
+            "log_structured_error",
+            "ErrorContext",
+            "SuggestionList"
+        ]
+
+        for export in expected_exports:
+            assert export in error_formatter.__all__
+            assert hasattr(error_formatter, export)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

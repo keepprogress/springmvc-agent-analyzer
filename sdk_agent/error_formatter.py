@@ -5,22 +5,72 @@ Provides consistent error message formatting across all modules
 for better debugging and user experience.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import logging
 
+# Type aliases for clarity
+ErrorContext = Dict[str, Any]
+SuggestionList = List[str]
+
+# Maximum length for context values to prevent log spam
+MAX_CONTEXT_VALUE_LENGTH = 500
+MAX_TOTAL_CONTEXT_LENGTH = 2000
+
 logger = logging.getLogger("sdk_agent.error_formatter")
+
+# Public API
+__all__ = [
+    "ErrorFormatter",
+    "log_structured_error",
+    "ErrorContext",
+    "SuggestionList",
+]
 
 
 class ErrorFormatter:
     """Standardized error message formatter."""
 
     @staticmethod
+    def _truncate_context(context: ErrorContext) -> ErrorContext:
+        """
+        Truncate context values to prevent excessive log spam.
+
+        Args:
+            context: Context dictionary with potentially large values
+
+        Returns:
+            Truncated context dictionary
+        """
+        if not context:
+            return context
+
+        truncated = {}
+        total_length = 0
+
+        for key, value in context.items():
+            value_str = str(value)
+
+            # Truncate individual values
+            if len(value_str) > MAX_CONTEXT_VALUE_LENGTH:
+                value_str = value_str[:MAX_CONTEXT_VALUE_LENGTH] + "... [truncated]"
+
+            # Check total context length
+            total_length += len(value_str)
+            if total_length > MAX_TOTAL_CONTEXT_LENGTH:
+                truncated["_note"] = f"Additional context truncated (exceeded {MAX_TOTAL_CONTEXT_LENGTH} chars)"
+                break
+
+            truncated[key] = value_str
+
+        return truncated
+
+    @staticmethod
     def format_error_message(
         error_type: str,
         component: str,
         details: str,
-        context: Optional[Dict[str, Any]] = None,
-        suggestions: Optional[list] = None
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[SuggestionList] = None
     ) -> str:
         """
         Format error message with consistent structure.
@@ -30,6 +80,7 @@ class ErrorFormatter:
             component: Component where error occurred (e.g., "batch_processor")
             details: Detailed error description
             context: Optional context information (e.g., file paths, parameters)
+                     Large context values are automatically truncated to prevent log spam
             suggestions: Optional list of suggestions to fix the error
 
         Returns:
@@ -42,12 +93,18 @@ class ErrorFormatter:
             Suggestions:
               - suggestion 1
               - suggestion 2
+
+        Note:
+            Context values exceeding MAX_CONTEXT_VALUE_LENGTH (500) chars are truncated.
+            Total context exceeding MAX_TOTAL_CONTEXT_LENGTH (2000) chars is truncated.
         """
         lines = [f"[{error_type}] {component}: {details}"]
 
         if context:
+            # Truncate context to prevent log spam
+            truncated_context = ErrorFormatter._truncate_context(context)
             lines.append("\nContext:")
-            for key, value in context.items():
+            for key, value in truncated_context.items():
                 lines.append(f"  - {key}: {value}")
 
         if suggestions:
@@ -62,7 +119,7 @@ class ErrorFormatter:
         file_path: str,
         error: Exception,
         operation: str,
-        suggestions: Optional[list] = None
+        suggestions: Optional[SuggestionList] = None
     ) -> str:
         """
         Format file operation error.
@@ -96,7 +153,7 @@ class ErrorFormatter:
         field_name: str,
         value: Any,
         expected: str,
-        suggestions: Optional[list] = None
+        suggestions: Optional[SuggestionList] = None
     ) -> str:
         """
         Format validation error.
@@ -127,7 +184,7 @@ class ErrorFormatter:
         parameter: str,
         value: Any,
         valid_range: str,
-        suggestions: Optional[list] = None
+        suggestions: Optional[SuggestionList] = None
     ) -> str:
         """
         Format configuration parameter error.
@@ -160,7 +217,7 @@ class ErrorFormatter:
     def format_processing_error(
         item: str,
         error: Exception,
-        batch_info: Optional[Dict[str, Any]] = None
+        batch_info: Optional[ErrorContext] = None
     ) -> str:
         """
         Format batch processing error.
@@ -199,7 +256,7 @@ def log_structured_error(
     logger_obj: logging.Logger,
     error: Exception,
     component: str,
-    context: Optional[Dict[str, Any]] = None,
+    context: Optional[ErrorContext] = None,
     level: int = logging.ERROR
 ) -> None:
     """
