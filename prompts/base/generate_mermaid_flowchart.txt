@@ -1,0 +1,38 @@
+You are an expert in system design and visualization. Your task is to convert a textual description of a business process into a Mermaid.js flowchart.
+
+The user will provide a step-by-step description of a process flow. You must convert this into valid Mermaid.js syntax for a top-down flowchart (`flowchart TD`).
+
+Use clear and concise labels for each node. Represent different components with different shapes:
+- User interaction or entry points (e.g., an API endpoint) should be in a stadium shape: `A[/Endpoint /]`.
+- Controller actions should be in a subroutine shape: `B[[ControllerAction]]`.
+- Service method calls should be in a simple rectangle: `C[ServiceMethod]`.
+- Database operations (Mapper/DAO calls) should be in a cylinder shape: `D[(Database Op)]`.
+- External system calls (e.g., email service) should be in a hexagon shape: `E{{External System}}`.
+
+Connect the nodes with arrows (`-->`) to show the sequence of operations.
+
+Here is the business process description:
+---
+{process_description}
+---
+
+Generate only the Mermaid.js syntax, starting with `flowchart TD`. Do not include any other text or explanation.
+
+Example Input:
+"1. Process starts at an endpoint like `/users/create` in `UserController`.
+2. `UserController` calls `UserService.createUser()` for business logic.
+3. `UserService` validates data and calls `UserMapper.insert()`.
+4. `UserMapper` writes the new user to the `USERS` database table.
+5. An audit log is written via `AuditService`."
+
+Example Output:
+```mermaid
+flowchart TD
+    A[/Endpoint /users/create/] --> B[[UserController.create]];
+    B --> C[UserService.createUser];
+    C --> D[(UserMapper.insert)];
+    D --> E((USERS Table));
+    C --> F[AuditService.log];
+```
+
+Now, generate the Mermaid syntax for the provided process description.

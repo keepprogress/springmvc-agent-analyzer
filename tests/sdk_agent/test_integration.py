@@ -17,6 +17,15 @@ from sdk_agent.mcp_server_factory import create_analyzer_mcp_server
 from sdk_agent.sdk_tools import ALL_SDK_TOOLS
 
 
+def _check_sdk_available():
+    """Check if Claude Agent SDK is available."""
+    try:
+        import claude_agent_sdk
+        return True
+    except ImportError:
+        return False
+
+
 class TestSDKIntegration:
     """Test SDK Agent integration."""
 
@@ -210,15 +219,6 @@ class TestContextManagerFix:
         # Verify __aenter__ and __aexit__ were called
         agent.client.__aenter__.assert_called_once()
         agent.client.__aexit__.assert_called_once()
-
-
-def _check_sdk_available():
-    """Check if Claude Agent SDK is available."""
-    try:
-        import claude_agent_sdk
-        return True
-    except ImportError:
-        return False
 
 
 # Skip all tests if SDK not installed

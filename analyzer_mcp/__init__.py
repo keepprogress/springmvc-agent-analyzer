@@ -5,6 +5,6 @@ Provides Claude Code integration through MCP protocol, exposing analysis
 tools and resources for interactive code understanding.
 """
 
-from mcp.server import SpringMVCAnalyzerServer
+from .server import SpringMVCAnalyzerServer
 
 __all__ = ["SpringMVCAnalyzerServer"]

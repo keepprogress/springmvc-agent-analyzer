@@ -15,6 +15,7 @@ from core.prompt_manager import PromptManager
 from core.cost_tracker import CostTracker
 from core.cache_manager import CacheManager
 from graph.graph_builder import GraphBuilder
+from graph.query import GraphQueryEngine
 from agents.controller_agent import ControllerAgent
 from agents.jsp_agent import JSPAgent
 from agents.service_agent import ServiceAgent
@@ -72,6 +73,7 @@ class AgentFactory:
         self.cost_tracker: Optional[CostTracker] = None
         self.cache_manager: Optional[CacheManager] = None
         self.graph_builder: Optional[GraphBuilder] = None
+        self.graph_query_engine: Optional[GraphQueryEngine] = None
 
         # Agent instances (initialized lazily)
         self.agents: Dict[str, Any] = {}
@@ -109,6 +111,7 @@ class AgentFactory:
         self.cost_tracker = CostTracker()
         self.cache_manager = CacheManager()
         self.graph_builder = GraphBuilder()
+        self.graph_query_engine = GraphQueryEngine(self.graph_builder.get_graph())
 
         logger.info("Core components initialized")
 
@@ -259,3 +262,16 @@ def get_cost_tracker() -> CostTracker:
         CostTracker instance
     """
     return get_factory().get_cost_tracker()
+
+
+def get_agent_factory_and_dependencies() -> Dict[str, Any]:
+    """
+    Convenience function to get all dependencies needed for high-level agents.
+    """
+    factory = get_factory()
+    factory._initialize_core_components()
+    return {
+        "llm_client": factory.model_router,  # Assuming ModelRouter acts as the client
+        "prompt_manager": factory.prompt_manager,
+        "graph_query_engine": factory.graph_query_engine,
+    }
