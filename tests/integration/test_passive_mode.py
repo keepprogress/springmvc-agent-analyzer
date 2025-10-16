@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import json
 
-from mcp.server import SpringMVCAnalyzerServer
+from analyzer_mcp.server import SpringMVCAnalyzerServer
 
 
 @pytest.fixture

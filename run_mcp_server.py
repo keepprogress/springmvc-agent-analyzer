@@ -22,7 +22,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from mcp.server import SpringMVCAnalyzerServer
+from analyzer_mcp.server import SpringMVCAnalyzerServer
 
 
 def setup_logging():

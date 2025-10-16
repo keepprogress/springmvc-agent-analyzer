@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock, patch
 import asyncio
 
-from mcp.server import SpringMVCAnalyzerServer
+from analyzer_mcp.server import SpringMVCAnalyzerServer
 
 
 @pytest.fixture

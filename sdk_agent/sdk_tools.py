@@ -44,6 +44,28 @@ from sdk_agent.tools.query_tools import (
     ANALYZE_IMPACT_META,
 )
 
+from sdk_agent.tools.business_process_tools import (
+    discover_business_process as _discover_business_process,
+    DISCOVER_BUSINESS_PROCESS_META,
+)
+
+from sdk_agent.tools.database_tools import (
+    generate_data_dictionary as _generate_data_dictionary,
+    GENERATE_DATA_DICTIONARY_META,
+)
+
+from sdk_agent.tools.visualization_tools import (
+    generate_business_flowchart as _generate_business_flowchart,
+    GENERATE_BUSINESS_FLOWCHART_META,
+)
+
+from sdk_agent.tools.config_tools import (
+    analyze_spring_xml as _analyze_spring_xml,
+    ANALYZE_SPRING_XML_META,
+    analyze_properties_file as _analyze_properties_file,
+    ANALYZE_PROPERTIES_FILE_META,
+)
+
 
 # Wrap analysis tools with @tool decorator
 @tool(
@@ -158,6 +180,60 @@ async def analyze_impact(args):
     return await _analyze_impact(args)
 
 
+# Wrap business process tools
+@tool(
+    DISCOVER_BUSINESS_PROCESS_META["name"],
+    DISCOVER_BUSINESS_PROCESS_META["description"],
+    DISCOVER_BUSINESS_PROCESS_META["input_schema"]["properties"]
+)
+async def discover_business_process(args):
+    """Discover business process - SDK wrapper."""
+    return await _discover_business_process(args)
+
+
+# Wrap database tools
+@tool(
+    GENERATE_DATA_DICTIONARY_META["name"],
+    GENERATE_DATA_DICTIONARY_META["description"],
+    GENERATE_DATA_DICTIONARY_META["input_schema"]["properties"]
+)
+async def generate_data_dictionary(args):
+    """Generate data dictionary - SDK wrapper."""
+    return await _generate_data_dictionary(args)
+
+
+# Wrap visualization tools
+@tool(
+    GENERATE_BUSINESS_FLOWCHART_META["name"],
+    GENERATE_BUSINESS_FLOWCHART_META["description"],
+    GENERATE_BUSINESS_FLOWCHART_META["input_schema"]["properties"]
+)
+async def generate_business_flowchart(args):
+    """Generate business flowchart - SDK wrapper."""
+    return await _generate_business_flowchart(args)
+
+
+# Wrap config tools
+@tool(
+    ANALYZE_SPRING_XML_META["name"],
+    ANALYZE_SPRING_XML_META["description"],
+    ANALYZE_SPRING_XML_META["input_schema"]["properties"]
+)
+async def analyze_spring_xml(args):
+    """Analyze Spring XML - SDK wrapper."""
+    return await _analyze_spring_xml(args)
+
+
+@tool(
+    ANALYZE_PROPERTIES_FILE_META["name"],
+    ANALYZE_PROPERTIES_FILE_META["description"],
+    ANALYZE_PROPERTIES_FILE_META["input_schema"]["properties"]
+)
+async def analyze_properties_file(args):
+    """Analyze .properties file - SDK wrapper."""
+    return await _analyze_properties_file(args)
+
+
 # Export all SDK-wrapped tools
 ALL_SDK_TOOLS = [
     analyze_controller,
@@ -171,4 +247,9 @@ ALL_SDK_TOOLS = [
     query_graph,
     find_dependencies,
     analyze_impact,
+    discover_business_process,
+    generate_data_dictionary,
+    generate_business_flowchart,
+    analyze_spring_xml,
+    analyze_properties_file,
 ]
